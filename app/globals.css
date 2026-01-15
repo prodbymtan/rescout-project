@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+:root {
+  /* Team Hyper 69 Theme - Blue Primary, Orange Secondary */
+  --primary-blue: #0066CC;
+  --primary-blue-dark: #0052A3;
+  --primary-blue-light: #3385D6;
+  --secondary-orange: #FF6600;
+  --secondary-orange-dark: #CC5200;
+  --secondary-orange-light: #FF8533;
+  --background: #F5F7FA;
+  --foreground: #1A1A1A;
+  --card-bg: #FFFFFF;
+  --border: #E0E0E0;
+  --success: #10B981;
+  --error: #EF4444;
+  --warning: #F59E0B;
+  --red-alliance: #DC2626;
+  --blue-alliance: #2563EB;
+}
+
+/* Haptic feedback simulation */
+@keyframes buttonPress {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+.button-press {
+  animation: buttonPress 0.15s ease-out;
+}
+
+/* Smooth transitions for all interactive elements */
+button, input, select, textarea {
+  transition: all 0.2s ease;
+}
+
+@theme inline {
+  --color-primary: var(--primary-blue);
+  --color-primary-dark: var(--primary-blue-dark);
+  --color-primary-light: var(--primary-blue-light);
+  --color-secondary: var(--secondary-orange);
+  --color-secondary-dark: var(--secondary-orange-dark);
+  --color-secondary-light: var(--secondary-orange-light);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card-bg);
+  --color-border: var(--border);
+  --color-success: var(--success);
+  --color-error: var(--error);
+  --color-warning: var(--warning);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Mobile-first touch targets */
+button, .touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Smooth transitions */
+* {
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
