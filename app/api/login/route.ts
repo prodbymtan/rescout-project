@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+export async function GET(req: NextRequest) {
+  return NextResponse.redirect(new URL("/login", req.url));
+}
+
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
   const password = formData.get("password");
@@ -36,7 +40,7 @@ export async function POST(req: NextRequest) {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 12, // 12 hours
+    maxAge: 60 * 60 * 24 * 30, // 30 days
   });
 
   return res;
