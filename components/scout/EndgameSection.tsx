@@ -75,19 +75,19 @@ export default function EndgameSection({
   };
 
   return (
-    <div className="p-4 space-y-6">
+    <div className="px-3 py-4 space-y-4">
       {/* Climb */}
-      <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-gray-800">Climb</h3>
+      <div className="space-y-2 y2k-panel y2k-outline rounded-xl p-3">
+        <h3 className="text-base font-semibold text-gray-800">Climb</h3>
         <div className="grid grid-cols-5 gap-2">
           {(['none', 'failed', 'low', 'mid', 'high'] as const).map((level) => (
             <button
               key={level}
               onClick={() => onClimbChange(level)}
-              className={`py-3 px-2 rounded-lg font-semibold text-sm capitalize transition-colors ${
+              className={`min-h-[52px] py-2 px-1 rounded-lg font-semibold text-xs capitalize transition-colors y2k-pill ${
                 climb === level
-                  ? 'bg-primary text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'y2k-button-primary text-white border border-primary-dark y2k-orange-glow'
+                  : 'bg-gray-200 text-gray-500 border border-border hover:border-secondary/40 y2k-panel-soft'
               }`}
             >
               {level}
@@ -97,8 +97,8 @@ export default function EndgameSection({
       </div>
 
       {/* Parked */}
-      <div className="space-y-3">
-        <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer">
+      <div className="space-y-2 y2k-panel y2k-outline rounded-xl p-3">
+        <label className="flex items-center gap-2 p-2.5 y2k-panel-soft rounded-lg cursor-pointer min-h-[44px] y2k-pill">
           <input
             type="checkbox"
             checked={parked}
@@ -110,20 +110,20 @@ export default function EndgameSection({
       </div>
 
       {/* Defense Sliders */}
-      <div className="space-y-4">
+      <div className="space-y-3 y2k-panel y2k-outline rounded-xl p-3">
         <div>
-          <label className="block text-sm font-semibold text-gray-800 mb-2">
+          <label className="block text-xs font-semibold text-gray-800 mb-1.5">
             Got Defended
           </label>
-          <div className="flex gap-2">
+          <div className="flex gap-1.5">
             {(['none', 'light', 'heavy'] as const).map((level) => (
               <button
                 key={level}
                 onClick={() => onGotDefendedChange(level)}
-                className={`flex-1 py-3 rounded-lg font-semibold text-sm capitalize transition-colors ${
+                className={`flex-1 min-h-[44px] py-2 rounded-lg font-semibold text-xs capitalize transition-colors y2k-pill ${
                   gotDefended === level
-                    ? 'bg-orange-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'y2k-button-primary text-white y2k-orange-glow'
+                    : 'bg-gray-200 text-gray-500 hover:border-secondary/40 border border-border y2k-panel-soft'
                 }`}
               >
                 {level}
@@ -133,18 +133,18 @@ export default function EndgameSection({
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-gray-800 mb-2">
+          <label className="block text-xs font-semibold text-gray-800 mb-1.5">
             Played Defense
           </label>
-          <div className="flex gap-2">
+          <div className="flex gap-1.5">
             {(['none', 'light', 'heavy'] as const).map((level) => (
               <button
                 key={level}
                 onClick={() => onPlayedDefenseChange(level)}
-                className={`flex-1 py-3 rounded-lg font-semibold text-sm capitalize transition-colors ${
+                className={`flex-1 min-h-[44px] py-2 rounded-lg font-semibold text-xs capitalize transition-colors y2k-pill ${
                   playedDefense === level
-                    ? 'bg-primary text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'y2k-button-secondary text-white y2k-blue-glow'
+                    : 'bg-gray-200 text-gray-500 hover:border-secondary/40 border border-border y2k-panel-soft'
                 }`}
               >
                 {level}
@@ -155,9 +155,9 @@ export default function EndgameSection({
       </div>
 
       {/* Notes */}
-      <div className="space-y-3">
-        <label className="block text-sm font-semibold text-gray-800">
-          Notes (max 120 chars)
+      <div className="space-y-2 y2k-panel y2k-outline rounded-xl p-3">
+        <label className="block text-xs font-semibold text-gray-800">
+          Notes (120 chars)
         </label>
         <textarea
           value={notes}
@@ -165,8 +165,8 @@ export default function EndgameSection({
             const value = e.target.value.slice(0, 120);
             onNotesChange(value);
           }}
-          className="w-full px-3 py-2 border border-border rounded-lg resize-none"
-          rows={3}
+          className="w-full px-2.5 py-2 text-sm border border-border rounded-lg resize-none bg-background text-foreground y2k-panel-soft y2k-pill"
+          rows={2}
           maxLength={120}
           placeholder="Quick notes about robot performance..."
         />
@@ -176,46 +176,46 @@ export default function EndgameSection({
       </div>
 
       {/* Ranking Points */}
-      <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-gray-800">Ranking Points</h3>
-        <div className="space-y-2">
-          <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer">
+      <div className="space-y-2 y2k-panel y2k-outline rounded-xl p-3">
+        <h3 className="text-base font-semibold text-gray-800">Ranking Points</h3>
+        <div className="space-y-1.5">
+          <label className="flex items-center gap-2 p-2.5 y2k-panel-soft rounded-lg cursor-pointer min-h-[44px] y2k-pill">
             <input
               type="checkbox"
               checked={energizedRP}
               onChange={(e) => onEnergizedRPChange(e.target.checked)}
               className="w-5 h-5 text-primary rounded"
             />
-            <div className="flex-1">
-              <span className="font-medium">Energized RP</span>
-              <span className="block text-xs text-gray-500">100+ fuel scored in hub</span>
+            <div className="flex-1 min-w-0">
+              <span className="font-medium text-sm">Energized RP</span>
+              <span className="block text-xs text-gray-500">100+ fuel</span>
             </div>
           </label>
-          <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer">
+          <label className="flex items-center gap-2 p-2.5 y2k-panel-soft rounded-lg cursor-pointer min-h-[44px] y2k-pill">
             <input
               type="checkbox"
               checked={superchargedRP}
               onChange={(e) => onSuperchargedRPChange(e.target.checked)}
               className="w-5 h-5 text-primary rounded"
             />
-            <div className="flex-1">
-              <span className="font-medium">Supercharged RP</span>
-              <span className="block text-xs text-gray-500">360+ fuel scored in hub</span>
+            <div className="flex-1 min-w-0">
+              <span className="font-medium text-sm">Supercharged RP</span>
+              <span className="block text-xs text-gray-500">360+ fuel</span>
             </div>
           </label>
-          <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer">
+          <label className="flex items-center gap-2 p-2.5 y2k-panel-soft rounded-lg cursor-pointer min-h-[44px] y2k-pill">
             <input
               type="checkbox"
               checked={traversalRP}
               onChange={(e) => onTraversalRPChange(e.target.checked)}
               className="w-5 h-5 text-primary rounded"
             />
-            <div className="flex-1">
-              <span className="font-medium">Traversal RP</span>
-              <span className="block text-xs text-gray-500">50+ tower points scored</span>
+            <div className="flex-1 min-w-0">
+              <span className="font-medium text-sm">Traversal RP</span>
+              <span className="block text-xs text-gray-500">50+ tower pts</span>
             </div>
           </label>
-          <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer">
+          <label className="flex items-center gap-2 p-2.5 y2k-panel-soft rounded-lg cursor-pointer min-h-[44px] y2k-pill">
             <input
               type="checkbox"
               checked={matchWin}
@@ -225,12 +225,11 @@ export default function EndgameSection({
               }}
               className="w-5 h-5 text-primary rounded"
             />
-            <div className="flex-1">
-              <span className="font-medium">Match Win</span>
-              <span className="block text-xs text-gray-500">Alliance won the match</span>
+            <div className="flex-1 min-w-0">
+              <span className="font-medium text-sm">Match Win</span>
             </div>
           </label>
-          <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer">
+          <label className="flex items-center gap-2 p-2.5 y2k-panel-soft rounded-lg cursor-pointer min-h-[44px] y2k-pill">
             <input
               type="checkbox"
               checked={matchTie}
@@ -240,45 +239,44 @@ export default function EndgameSection({
               }}
               className="w-5 h-5 text-primary rounded"
             />
-            <div className="flex-1">
-              <span className="font-medium">Match Tie</span>
-              <span className="block text-xs text-gray-500">Match ended in a tie</span>
+            <div className="flex-1 min-w-0">
+              <span className="font-medium text-sm">Match Tie</span>
             </div>
           </label>
         </div>
       </div>
 
       {/* Major Contributor */}
-      <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-gray-800">Contribution</h3>
-        <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer">
+      <div className="space-y-2 y2k-panel y2k-outline rounded-xl p-3">
+        <h3 className="text-base font-semibold text-gray-800">Contribution</h3>
+        <label className="flex items-center gap-2 p-2.5 y2k-panel-soft rounded-lg cursor-pointer min-h-[44px] y2k-pill">
           <input
             type="checkbox"
             checked={majorContributor}
             onChange={(e) => onMajorContributorChange(e.target.checked)}
             className="w-5 h-5 text-primary rounded"
           />
-          <div className="flex-1">
-            <span className="font-medium">Major Contributor</span>
-            <span className="block text-xs text-gray-500">Robot contributed 40%+ of alliance match points</span>
+          <div className="flex-1 min-w-0">
+            <span className="font-medium text-sm">Major Contributor</span>
+            <span className="block text-xs text-gray-500">40%+ alliance pts</span>
           </div>
         </label>
       </div>
 
       {/* Tags */}
-      <div className="space-y-3">
-        <label className="block text-sm font-semibold text-gray-800">
+      <div className="space-y-2 y2k-panel y2k-outline rounded-xl p-3">
+        <label className="block text-xs font-semibold text-gray-800">
           Tags
         </label>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5">
           {SUGGESTED_TAGS.map((tag) => (
             <button
               key={tag}
               onClick={() => toggleTag(tag)}
-              className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+              className={`px-2.5 py-1.5 min-h-[36px] rounded-full text-xs font-medium transition-colors y2k-pill ${
                 tags.includes(tag)
-                  ? 'bg-secondary text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'y2k-button-primary text-white y2k-orange-glow'
+                  : 'bg-gray-200 text-gray-500 hover:border-secondary/40 border border-border y2k-panel-soft'
               }`}
             >
               {tag}
@@ -294,4 +292,3 @@ export default function EndgameSection({
     </div>
   );
 }
-

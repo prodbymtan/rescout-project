@@ -1,6 +1,8 @@
 // The Blue Alliance API integration
 // API docs: https://www.thebluealliance.com/apidocs/v3
 
+import { Match } from '@/types';
+
 const TBA_API_BASE = 'https://www.thebluealliance.com/api/v3';
 
 export interface TBATeam {
@@ -108,6 +110,42 @@ export function convertTBAMatch(tbaMatch: TBAMatch): { redAlliance: number[]; bl
   return { redAlliance: red, blueAlliance: blue };
 }
 
+function getMatchStatus(tbaMatch: TBAMatch): Match['status'] {
+  const hasScore =
+    typeof tbaMatch.alliances?.red?.score === 'number' &&
+    typeof tbaMatch.alliances?.blue?.score === 'number' &&
+    (tbaMatch.alliances?.red?.score ?? -1) >= 0 &&
+    (tbaMatch.alliances?.blue?.score ?? -1) >= 0;
+
+  if (hasScore) return 'completed';
+  return 'upcoming';
+}
+
+export function convertTBAMatchToMatch(tbaMatch: TBAMatch): Match | null {
+  const parsed = convertTBAMatch(tbaMatch);
+  if (!parsed) return null;
+
+  const matchLabel =
+    tbaMatch.comp_level === 'qm'
+      ? `Q${tbaMatch.match_number}`
+      : `${tbaMatch.comp_level.toUpperCase()}${tbaMatch.match_number}`;
+
+  return {
+    matchNumber: matchLabel,
+    redAlliance: parsed.redAlliance,
+    blueAlliance: parsed.blueAlliance,
+    redScore: tbaMatch.alliances?.red?.score,
+    blueScore: tbaMatch.alliances?.blue?.score,
+    timestamp:
+      (tbaMatch.actual_time ||
+        tbaMatch.predicted_time ||
+        tbaMatch.time ||
+        tbaMatch.post_result_time ||
+        0) * 1000,
+    status: getMatchStatus(tbaMatch),
+  };
+}
+
 // TBA OPR/DPR data structure
 export interface TBAOPRs {
   [teamKey: string]: number;
@@ -189,4 +227,3 @@ export async function fetchEventMatchesDetailed(eventKey: string): Promise<TBAMa
     throw error;
   }
 }
-

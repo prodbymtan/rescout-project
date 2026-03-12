@@ -17,8 +17,6 @@ export default function ScoutScreen() {
   const [teamNumber, setTeamNumber] = useState(0);
   const [position, setPosition] = useState<Position>(2);
   const [activePhase, setActivePhase] = useState<Phase>('auto');
-  const [matchTime, setMatchTime] = useState(160); // seconds - 2:40 match duration
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [undoStack, setUndoStack] = useState<Array<{ action: string; timestamp: number }>>([]);
   const [scoutProfile, setScoutProfile] = useState<string | null>(null);
 
@@ -44,8 +42,6 @@ export default function ScoutScreen() {
     made: 0,
     miss: 0,
   });
-  const [cycles, setCycles] = useState<Array<{ id: string; startTime: number; endTime: number; ballsScored: number }>>([]);
-  const [currentCycle, setCurrentCycle] = useState<{ startTime: number } | null>(null);
 
   // Endgame state
   const [climb, setClimb] = useState<'none' | 'failed' | 'low' | 'mid' | 'high'>('none');
@@ -60,35 +56,11 @@ export default function ScoutScreen() {
   const [matchWin, setMatchWin] = useState(false);
   const [matchTie, setMatchTie] = useState(false);
   const [majorContributor, setMajorContributor] = useState(false);
+  const [phaseKey, setPhaseKey] = useState(0);
 
-  // Timer with start/pause control
   useEffect(() => {
-    if (!isTimerRunning) return;
-
-    const interval = setInterval(() => {
-      setMatchTime((prev) => {
-        if (prev <= 0) {
-          setIsTimerRunning(false);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isTimerRunning]);
-
-  const handleTimerStart = () => {
-    setIsTimerRunning(true);
-  };
-
-  const handleTimerPause = () => {
-    setIsTimerRunning(false);
-  };
-
-  const handleTimerReset = () => {
-    setIsTimerRunning(false);
-    setMatchTime(160); // Reset to 2:40
-  };
+    setPhaseKey((prev) => prev + 1);
+  }, [activePhase]);
 
   const addUndoAction = (action: string) => {
     setUndoStack((prev) => [{ action, timestamp: Date.now() }, ...prev.slice(0, 2)]);
@@ -102,10 +74,6 @@ export default function ScoutScreen() {
     // Error checks as per ChiefDelphi post priorities
     const warnings: string[] = [];
     
-    // Check for zero teleop balls but notes suggest activity
-    if (submitTotalTeleopMade === 0 && notes.toLowerCase().includes('cycle')) {
-      warnings.push("You logged 0 teleop fuel but notes mention cycling - confirm?");
-    }
     
     // Check for unrealistic ball counts
     if (submitTotalTeleopMade > config.normalBallRange.max) {
@@ -132,12 +100,7 @@ export default function ScoutScreen() {
       },
       teleop: {
         ballCounts: teleopBalls,
-        cycles: cycles.map(c => ({
-          id: c.id,
-          startTime: c.startTime,
-          endTime: c.endTime,
-          ballsScored: c.ballsScored,
-        })),
+        cycles: [],
       },
       endgame: {
         climb,
@@ -165,7 +128,6 @@ export default function ScoutScreen() {
     setTowerClimb('none');
     setAutoWinner(undefined);
     setTeleopBalls({ made: 0, miss: 0 });
-    setCycles([]);
     setClimb('none');
     setParked(false);
     setGotDefended('none');
@@ -194,16 +156,10 @@ export default function ScoutScreen() {
         alliance={alliance}
         teamNumber={teamNumber}
         position={position}
-        matchTime={matchTime}
-        isTimerRunning={isTimerRunning}
-        autoWinner={autoWinner}
         onMatchChange={setMatchNumber}
         onAllianceChange={setAlliance}
         onTeamChange={setTeamNumber}
         onPositionChange={setPosition}
-        onTimerStart={handleTimerStart}
-        onTimerPause={handleTimerPause}
-        onTimerReset={handleTimerReset}
       />
 
       {undoStack.length > 0 && (
@@ -211,15 +167,15 @@ export default function ScoutScreen() {
       )}
 
       {/* Phase Tabs */}
-      <div className="flex border-b border-border bg-card">
+      <div className="flex border-b border-border bg-card shrink-0 px-2 py-2 gap-2">
         {(['auto', 'teleop', 'endgame'] as Phase[]).map((phase) => (
           <button
             key={phase}
             onClick={() => setActivePhase(phase)}
-            className={`flex-1 py-3 px-4 text-sm font-semibold capitalize transition-colors ${
+            className={`flex-1 min-h-[44px] py-2.5 px-2 text-xs sm:text-sm font-semibold uppercase tracking-wide transition-all rounded-md y2k-segment y2k-pill ${
               activePhase === phase
-                ? 'bg-primary text-white'
-                : 'bg-card text-gray-600 hover:bg-gray-50'
+                ? 'text-secondary border border-secondary/50 y2k-blue-glow'
+                : 'text-gray-500 border border-border hover:border-secondary/40 hover:text-secondary'
             }`}
           >
             {phase}
@@ -228,7 +184,7 @@ export default function ScoutScreen() {
       </div>
 
       {/* Phase Content */}
-      <div className="flex-1 overflow-y-auto">
+      <div key={phaseKey} className="flex-1 overflow-y-auto y2k-phase-enter">
         {activePhase === 'auto' && (
           <AutoSection
             balls={autoBalls}
@@ -247,11 +203,6 @@ export default function ScoutScreen() {
           <TeleopSection
             balls={teleopBalls}
             onBallsChange={setTeleopBalls}
-            cycles={cycles}
-            onCyclesChange={setCycles}
-            currentCycle={currentCycle}
-            onCurrentCycleChange={setCurrentCycle}
-            matchTime={matchTime}
             onUndo={addUndoAction}
           />
         )}
@@ -287,22 +238,20 @@ export default function ScoutScreen() {
       </div>
 
       {/* Submit Button */}
-      <div className="p-4 bg-card border-t-2 border-primary/20 shadow-lg">
+      <div className="px-3 py-3 y2k-panel border-t border-border shadow-lg shrink-0">
         {activePhase === 'teleop' && (
-          <div className="mb-3 p-3 bg-primary/5 border border-primary/20 rounded-lg text-xs text-gray-700">
-            <div className="font-semibold mb-1 text-gray-800">Live Totals:</div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>Fuel Made: <span className="font-bold text-primary">{teleopBalls.made}/{teleopBalls.made + teleopBalls.miss}</span></div>
-              <div>Total Made: <span className="font-bold text-success">{totalTeleopMade}</span></div>
-            </div>
-            <div className="mt-2 pt-2 border-t border-gray-200">
-              Accuracy: <span className="font-bold">{teleopAccuracy.toFixed(1)}%</span>
-            </div>
+          <div className="mb-2 p-2 y2k-panel-soft border border-secondary/30 rounded-lg text-xs text-gray-500">
+            <span className="font-semibold text-gray-300">Live: </span>
+            <span className="font-bold text-secondary y2k-readout">{teleopBalls.made}/{teleopBalls.made + teleopBalls.miss}</span>
+            <span className="mx-1.5">·</span>
+            <span className="font-bold text-success">{totalTeleopMade}</span> made
+            <span className="mx-1.5">·</span>
+            <span className="font-bold text-gray-300">{teleopAccuracy.toFixed(0)}%</span> acc
           </div>
         )}
         <button
           onClick={handleSubmit}
-          className="w-full py-4 bg-primary text-white font-bold text-lg rounded-lg hover:bg-primary-dark active:scale-98 transition-all shadow-lg button-press"
+          className="w-full min-h-[56px] py-3 text-white font-bold text-base rounded-xl active:scale-[0.98] transition-all shadow-lg button-press y2k-button-primary y2k-pill y2k-orange-glow"
         >
           ✓ Submit Match Data
         </button>
@@ -310,4 +259,3 @@ export default function ScoutScreen() {
     </div>
   );
 }
-

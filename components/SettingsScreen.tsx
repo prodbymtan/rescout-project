@@ -3,7 +3,9 @@
 import { useState, useEffect } from 'react';
 import { GameConfig } from '@/types';
 import { storage } from '@/lib/storage';
-import { getTBAKey, setTBAKey } from '@/lib/tba';
+import { convertTBAMatchToMatch, fetchEventMatchesDetailed, fetchEventOPRs, getTBAKey, setTBAKey } from '@/lib/tba';
+import { fetchTeamEventSignal } from '@/lib/statbotics';
+import { buildSyntheticScoutData } from '@/lib/synthetic';
 import { importTeamsFromCSV, importTeamsFromTBA, mergeAndSaveTeams } from '@/lib/teamImport';
 
 export default function SettingsScreen() {
@@ -14,7 +16,8 @@ export default function SettingsScreen() {
   });
   const [exportData, setExportData] = useState('');
   const [tbaApiKey, setTbaApiKey] = useState('');
-  const [eventKey, setEventKey] = useState('2026marea');
+  const [eventKey, setEventKey] = useState('2026week0');
+  const [targetAllianceFuel, setTargetAllianceFuel] = useState(357);
   const [importStatus, setImportStatus] = useState('');
   const [teamCount, setTeamCount] = useState(0);
   const [scoutProfile, setScoutProfile] = useState<string | null>(null);
@@ -28,7 +31,7 @@ export default function SettingsScreen() {
     if (savedEventKey) setEventKey(savedEventKey);
     const teams = storage.getTeams();
     setTeamCount(teams.length);
-    
+
     // Load scout profile
     fetch("/api/profile")
       .then((res) => res.json())
@@ -90,7 +93,17 @@ export default function SettingsScreen() {
       data.endgame.tags.join(';'),
     ]);
 
-    const csv = [headers, ...rows].map((row) => row.join(',')).join('\n');
+    const escapeCsvValue = (value: unknown) => {
+      const stringValue = String(value ?? '');
+      if (/[",\n]/.test(stringValue)) {
+        return `"${stringValue.replace(/"/g, '""')}"`;
+      }
+      return stringValue;
+    };
+
+    const csv = [headers, ...rows]
+      .map((row) => row.map(escapeCsvValue).join(','))
+      .join('\n');
     setExportData(csv);
 
     // Download
@@ -132,7 +145,7 @@ export default function SettingsScreen() {
         return;
       }
 
-      const mergedTeams = mergeAndSaveTeams(teams);
+      const mergedTeams = await mergeAndSaveTeams(teams);
       setTeamCount(mergedTeams.length);
       setImportStatus(`Successfully imported ${teams.length} teams! Total: ${mergedTeams.length}`);
       setTimeout(() => setImportStatus(''), 3000);
@@ -151,7 +164,7 @@ export default function SettingsScreen() {
 
       setImportStatus('Importing teams from TBA...');
       const teams = await importTeamsFromTBA(eventKey);
-      const mergedTeams = mergeAndSaveTeams(teams);
+      const mergedTeams = await mergeAndSaveTeams(teams);
       storage.saveEventKey(eventKey);
       setTeamCount(mergedTeams.length);
       setImportStatus(`Successfully imported ${teams.length} teams from ${eventKey}! Total: ${mergedTeams.length}`);
@@ -159,6 +172,98 @@ export default function SettingsScreen() {
     } catch (error: any) {
       setImportStatus(`Error: ${error.message}`);
       alert(`Error importing from TBA: ${error.message}`);
+    }
+  };
+
+  const parseMatchOrder = (matchNumber: string): number => {
+    const digits = matchNumber.replace(/\D/g, '');
+    const parsed = Number(digits);
+    return Number.isFinite(parsed) ? parsed : Number.MAX_SAFE_INTEGER;
+  };
+
+  const handleImportMatchesFromTBA = async () => {
+    try {
+      if (!tbaApiKey.trim()) {
+        alert('Please enter and save your TBA API key first!');
+        return;
+      }
+
+      setImportStatus(`Importing matches from TBA (${eventKey})...`);
+      const detailedMatches = await fetchEventMatchesDetailed(eventKey);
+
+      const eventMatches = detailedMatches
+        .filter((m) => m.comp_level === 'qm')
+        .map(convertTBAMatchToMatch)
+        .filter((m): m is NonNullable<typeof m> => Boolean(m))
+        .sort((a, b) => parseMatchOrder(a.matchNumber) - parseMatchOrder(b.matchNumber));
+
+      if (eventMatches.length === 0) {
+        setImportStatus(`No qualification matches found for ${eventKey}.`);
+        return;
+      }
+
+      await storage.saveMatches(eventMatches);
+      storage.saveEventKey(eventKey);
+      setImportStatus(`Imported ${eventMatches.length} matches from TBA (${eventKey}).`);
+      setTimeout(() => setImportStatus(''), 5000);
+    } catch (error: any) {
+      setImportStatus(`Error: ${error.message}`);
+      alert(`Error importing matches from TBA: ${error.message}`);
+    }
+  };
+
+  const handleSeedSyntheticData = async () => {
+    try {
+      if (!tbaApiKey.trim()) {
+        alert('Please enter and save your TBA API key first!');
+        return;
+      }
+
+      const matches = storage.getMatches();
+      if (matches.length === 0) {
+        alert('No matches found. Import matches from TBA first.');
+        return;
+      }
+
+      setImportStatus(`Seeding synthetic scout data for ${eventKey} (target ${targetAllianceFuel} fuel/alliance)...`);
+
+      const uniqueTeams = Array.from(
+        new Set(matches.flatMap((m) => [...m.redAlliance, ...m.blueAlliance]))
+      );
+
+      const [tbaOprs, statboticsSignals] = await Promise.all([
+        fetchEventOPRs(eventKey).catch(() => ({})),
+        Promise.all(uniqueTeams.map((team) => fetchTeamEventSignal(team, eventKey))),
+      ]);
+
+      const mergedData = buildSyntheticScoutData({
+        eventKey,
+        matches,
+        existingScoutData: storage.getScoutData(),
+        statboticsSignals: statboticsSignals.filter(
+          (signal): signal is NonNullable<typeof signal> => Boolean(signal)
+        ),
+        tbaOprs,
+        targetAllianceFuel: Math.max(50, targetAllianceFuel),
+      });
+
+      await storage.saveScoutData(mergedData);
+      storage.saveEventKey(eventKey);
+      storage.saveConfig({
+        ...config,
+        normalBallRange: {
+          min: config.normalBallRange.min,
+          max: Math.max(config.normalBallRange.max, Math.round(targetAllianceFuel * 0.8)),
+        },
+      });
+
+      setImportStatus(
+        `Seeded ${mergedData.filter((d) => d.id.startsWith('synthetic-')).length} synthetic team entries from TBA+Statbotics.`
+      );
+      setTimeout(() => setImportStatus(''), 6000);
+    } catch (error: any) {
+      setImportStatus(`Error: ${error.message}`);
+      alert(`Error seeding synthetic data: ${error.message}`);
     }
   };
 
@@ -206,7 +311,7 @@ export default function SettingsScreen() {
 
     try {
       const teams = importTeamsFromCSV(csvContent);
-      const mergedTeams = mergeAndSaveTeams(teams);
+      const mergedTeams = await mergeAndSaveTeams(teams);
       storage.saveEventKey('2026marea');
       setEventKey('2026marea');
       setTeamCount(mergedTeams.length);
@@ -328,11 +433,10 @@ export default function SettingsScreen() {
               Current Teams: <span className="text-primary">{teamCount}</span>
             </div>
             {importStatus && (
-              <div className={`text-xs mt-2 p-2 rounded ${
-                importStatus.startsWith('Error') 
-                  ? 'bg-red-50 text-red-700' 
+              <div className={`text-xs mt-2 p-2 rounded ${importStatus.startsWith('Error')
+                  ? 'bg-red-50 text-red-700'
                   : 'bg-green-50 text-green-700'
-              }`}>
+                }`}>
                 {importStatus}
               </div>
             )}
@@ -419,12 +523,35 @@ export default function SettingsScreen() {
                     onClick={handleImportFromTBA}
                     className="px-4 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-primary-dark transition-colors text-sm"
                   >
-                    Import
+                    Teams
                   </button>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
                   Event key format: YYYY[district]event (e.g., 2026marea)
                 </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  onClick={handleImportMatchesFromTBA}
+                  className="px-4 py-2 bg-secondary text-white font-semibold rounded-lg hover:bg-secondary-dark transition-colors text-sm"
+                >
+                  Import Matches (TBA)
+                </button>
+                <button
+                  onClick={handleSeedSyntheticData}
+                  className="px-4 py-2 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-colors text-sm"
+                >
+                  Seed Synthetic Data (TBA + Statbotics)
+                </button>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Target alliance fuel for stress test</label>
+                <input
+                  type="number"
+                  value={targetAllianceFuel}
+                  onChange={(e) => setTargetAllianceFuel(Math.max(0, Number(e.target.value) || 0))}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm"
+                />
               </div>
             </div>
           </div>
@@ -446,4 +573,3 @@ export default function SettingsScreen() {
     </div>
   );
 }
-

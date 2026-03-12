@@ -1,6 +1,7 @@
 'use client';
 
 import { BallCount } from '@/types';
+import { AllianceDot } from '@/components/icons/HyperIcons';
 
 interface AutoSectionProps {
   balls: BallCount;
@@ -29,7 +30,7 @@ export default function AutoSection({
     const currentValue = balls[type] || 0;
     const newBalls = { ...balls, [type]: Math.max(0, currentValue + delta) };
     onBallsChange(newBalls);
-    onUndo(`${delta > 0 ? '+' : '-'} ${type}`);
+    onUndo(`${delta > 0 ? '+' : ''}${delta} ${type}`);
     
     // Haptic feedback simulation (visual only on web)
     if (typeof window !== 'undefined' && 'vibrate' in navigator) {
@@ -41,72 +42,86 @@ export default function AutoSection({
   const totalAttempted = totalMade + balls.miss;
   const accuracy = totalAttempted > 0 ? (totalMade / totalAttempted) * 100 : 0;
 
+  const incrementAmounts = [1, 5, 10] as const;
+
+  const FuelCounter = ({
+    type,
+    label,
+    bgClass,
+    hoverClass,
+  }: {
+    type: 'made' | 'miss';
+    label: string;
+    bgClass: string;
+    hoverClass: string;
+  }) => (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-semibold text-gray-700">{label}</span>
+        <span className="text-xl font-bold tabular-nums">{balls[type] ?? 0}</span>
+      </div>
+      <div className="flex gap-1">
+        {incrementAmounts.map((n) => (
+          <button
+            key={n}
+            onClick={() => updateBall(type, n)}
+            className={`flex-1 min-h-[56px] py-3 text-sm font-bold rounded-xl ${bgClass} text-white active:scale-95 transition-all button-press ${hoverClass} hover:brightness-110 y2k-pill`}
+          >
+            +{n}
+          </button>
+        ))}
+        <button
+          onClick={() => updateBall(type, -1)}
+          className="min-w-[56px] min-h-[56px] py-3 px-3 bg-gray-200 text-gray-500 font-bold text-sm rounded-xl hover:border-secondary/40 border border-border active:scale-95 transition-all button-press y2k-panel-soft y2k-pill"
+        >
+          −
+        </button>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="p-4 space-y-6">
+    <div className="px-3 py-4 space-y-5">
       {/* Fuel Scoring */}
-      <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-gray-800">Fuel Scoring</h3>
-        
-        {/* Fuel Made */}
-        <div className="grid grid-cols-3 gap-2">
-          <button
-            onClick={() => updateBall('made', 1)}
-            className="col-span-2 py-6 bg-primary text-white font-bold text-xl rounded-lg hover:bg-primary-dark active:scale-95 transition-all shadow-lg button-press"
-          >
-            + Fuel Made
-          </button>
-          <button
-            onClick={() => updateBall('made', -1)}
-            className="py-6 bg-gray-200 text-gray-700 font-bold text-xl rounded-lg hover:bg-gray-300 active:scale-95 transition-all button-press"
-          >
-            −
-          </button>
-        </div>
-        <div className="grid grid-cols-3 gap-2">
-          <button
-            onClick={() => updateBall('miss', 1)}
-            className="col-span-2 py-6 bg-secondary text-white font-bold text-xl rounded-lg hover:bg-secondary-dark active:scale-95 transition-all shadow-lg button-press"
-          >
-            + Fuel Miss
-          </button>
-          <button
-            onClick={() => updateBall('miss', -1)}
-            className="py-6 bg-gray-200 text-gray-700 font-bold text-xl rounded-lg hover:bg-gray-300 active:scale-95 transition-all button-press"
-          >
-            −
-          </button>
+      <div className="space-y-3 y2k-panel y2k-outline rounded-xl p-3">
+        <h3 className="text-base font-semibold text-gray-800">Fuel Scoring</h3>
+        <div className="space-y-4">
+          <FuelCounter
+            type="made"
+            label="Fuel Made"
+            bgClass="y2k-button-primary"
+            hoverClass=""
+          />
+          <FuelCounter
+            type="miss"
+            label="Fuel Miss"
+            bgClass="y2k-button-secondary"
+            hoverClass=""
+          />
         </div>
       </div>
 
       {/* Starting Info */}
-      <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-gray-800">Starting Info</h3>
-        <div className="space-y-2">
-          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-            <label className="font-medium flex-1">
-              Preloaded balls
-              <span className="block text-xs text-gray-500">
-                How many game pieces did the robot start auto with?
-              </span>
-            </label>
-            <input
-              type="number"
-              min={0}
-              max={5}
-              value={preloadBalls}
-              onChange={(e) => onPreloadBallsChange(Math.max(0, Math.min(5, Number(e.target.value) || 0)))}
-              className="w-20 px-2 py-1 border border-border rounded-lg text-center"
-            />
-          </div>
+      <div className="space-y-2 y2k-panel y2k-outline rounded-xl p-3">
+        <h3 className="text-base font-semibold text-gray-800">Starting Info</h3>
+        <div className="flex items-center justify-between gap-3 p-2.5 y2k-panel-soft rounded-lg">
+          <label className="text-sm font-medium flex-1">
+            Preloaded balls
+          </label>
+          <input
+            type="number"
+            min={0}
+            max={8}
+            value={preloadBalls}
+            onChange={(e) => onPreloadBallsChange(Math.max(0, Math.min(5, Number(e.target.value) || 0)))}
+            className="w-16 px-2 py-1.5 border border-border rounded-lg text-center text-sm bg-background text-foreground y2k-panel-soft y2k-pill"
+          />
         </div>
       </div>
 
       {/* Tower Climb */}
-      <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-gray-800">Tower Climb</h3>
-        <p className="text-sm text-gray-600 mb-3">
-          Did the robot climb the tower during AUTO? (Level 1 max, 15 points)
-        </p>
+      <div className="space-y-2 y2k-panel y2k-outline rounded-xl p-3">
+        <h3 className="text-base font-semibold text-gray-800">Tower Climb</h3>
         <div className="grid grid-cols-3 gap-2">
           {(['none', 'level1', 'failed'] as const).map((level) => (
             <button
@@ -115,10 +130,10 @@ export default function AutoSection({
                 onTowerClimbChange(level);
                 onUndo(`Tower climb: ${level}`);
               }}
-              className={`py-4 px-3 rounded-lg font-semibold text-sm capitalize transition-colors ${
+              className={`min-h-[52px] py-2.5 px-2 rounded-lg font-semibold text-xs capitalize transition-colors y2k-pill ${
                 towerClimb === level
-                  ? 'bg-primary text-white border-2 border-primary-dark'
-                  : 'bg-gray-100 text-gray-700 border-2 border-gray-200 hover:bg-gray-200'
+                  ? 'y2k-button-primary text-white border-2 border-primary-dark y2k-orange-glow'
+                  : 'bg-gray-200 text-gray-500 border-2 border-border hover:border-secondary/40 y2k-panel-soft'
               }`}
             >
               {level === 'level1' ? 'Level 1' : level === 'none' ? 'None' : 'Failed'}
@@ -126,18 +141,14 @@ export default function AutoSection({
           ))}
         </div>
         {towerClimb === 'level1' && (
-          <p className="text-xs text-gray-500 mt-2">
-            ✓ Robot climbed to Level 1 (15 points)
-          </p>
+          <p className="text-xs text-gray-500 mt-1">✓ Level 1 climbed</p>
         )}
       </div>
 
       {/* Auto Winner Question */}
-      <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-gray-800">Auto Result</h3>
-        <p className="text-sm text-gray-600 mb-3">
-          Which alliance scored more fuel during AUTO? (Determines hub shifts)
-        </p>
+      <div className="space-y-2 y2k-panel y2k-outline rounded-xl p-3">
+        <h3 className="text-base font-semibold text-gray-800">Auto Result</h3>
+        <p className="text-xs text-gray-600">Which alliance scored more fuel?</p>
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => {
@@ -145,13 +156,16 @@ export default function AutoSection({
               onAutoWinnerChange(newWinner);
               onUndo(`Auto winner: ${newWinner || 'none'}`);
             }}
-            className={`py-4 px-3 rounded-lg font-semibold text-sm transition-colors ${
+            className={`min-h-[52px] py-2.5 px-2 rounded-lg font-semibold text-xs transition-colors y2k-pill ${
               autoWinner === 'red'
-                ? 'bg-red-600 text-white border-2 border-red-700'
-                : 'bg-red-100 text-red-700 border-2 border-red-200 hover:bg-red-200'
+                ? 'bg-red-600 text-white border-2 border-red-700 y2k-orange-glow'
+                : 'bg-red-500/10 text-red-300 border-2 border-red-500/30 hover:border-red-400/60 y2k-panel-soft'
             }`}
           >
-            🔴 Red Alliance
+            <span className="inline-flex items-center justify-center gap-2">
+              <AllianceDot alliance="red" />
+              Red Alliance
+            </span>
           </button>
           <button
             onClick={() => {
@@ -159,37 +173,40 @@ export default function AutoSection({
               onAutoWinnerChange(newWinner);
               onUndo(`Auto winner: ${newWinner || 'none'}`);
             }}
-            className={`py-4 px-3 rounded-lg font-semibold text-sm transition-colors ${
+            className={`min-h-[52px] py-2.5 px-2 rounded-lg font-semibold text-xs transition-colors y2k-pill ${
               autoWinner === 'blue'
-                ? 'bg-blue-600 text-white border-2 border-blue-700'
-                : 'bg-blue-100 text-blue-700 border-2 border-blue-200 hover:bg-blue-200'
+                ? 'bg-blue-600 text-white border-2 border-blue-700 y2k-blue-glow'
+                : 'bg-blue-500/10 text-blue-300 border-2 border-blue-500/30 hover:border-blue-400/60 y2k-panel-soft'
             }`}
           >
-            🔵 Blue Alliance
+            <span className="inline-flex items-center justify-center gap-2">
+              <AllianceDot alliance="blue" />
+              Blue Alliance
+            </span>
           </button>
         </div>
         {autoWinner && (
-          <div className="text-xs text-gray-600 mt-3 p-2 bg-gray-50 rounded">
-            <p className="font-semibold mb-1">Hub Schedule:</p>
-            <div className="space-y-1">
-              <div>Shift 1 & 3: <span className="font-semibold">{autoWinner === 'red' ? '🔵 Blue' : '🔴 Red'} Hub Active</span></div>
-              <div>Shift 2 & 4: <span className="font-semibold">{autoWinner === 'red' ? '🔴 Red' : '🔵 Blue'} Hub Active</span></div>
-            </div>
+          <div className="text-xs text-gray-500 mt-2 p-2 y2k-panel-soft rounded">
+            <span className="font-semibold">Hub:</span>{' '}
+            <span className="inline-flex items-center gap-1">
+              S1/3:
+              <AllianceDot alliance={autoWinner === 'red' ? 'blue' : 'red'} />
+            </span>{' '}
+            ·{' '}
+            <span className="inline-flex items-center gap-1">
+              S2/4:
+              <AllianceDot alliance={autoWinner === 'red' ? 'red' : 'blue'} />
+            </span>
           </div>
         )}
       </div>
 
       {/* Summary Bar */}
-      <div className="bg-primary/10 border-2 border-primary/30 rounded-lg p-4 shadow-sm">
-        <div className="text-sm font-bold text-gray-800 mb-1">
-          Auto Summary:
-        </div>
-        <div className="text-xs text-gray-700">
-          <span className="font-semibold">{totalMade}/{totalAttempted}</span> fuel | 
-          <span className="font-semibold text-success ml-1">{accuracy.toFixed(1)}%</span> accuracy
+      <div className="y2k-panel-soft border border-secondary/30 rounded-xl p-3 shadow-sm y2k-outline">
+        <div className="text-xs font-bold text-gray-400">
+          Auto: <span className="font-semibold text-gray-200 y2k-readout">{totalMade}/{totalAttempted}</span> fuel · <span className="text-success font-semibold">{accuracy.toFixed(1)}%</span> acc
         </div>
       </div>
     </div>
   );
 }
-

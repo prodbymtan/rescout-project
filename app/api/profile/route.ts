@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+export async function GET(req: NextRequest) {
+    const profile = req.cookies.get("scout_profile")?.value;
+    return NextResponse.json({ profile: profile || null });
+}
+
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();

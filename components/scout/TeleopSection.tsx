@@ -5,29 +5,19 @@ import { BallCount } from '@/types';
 interface TeleopSectionProps {
   balls: BallCount;
   onBallsChange: (balls: BallCount) => void;
-  cycles: Array<{ id: string; startTime: number; endTime: number; ballsScored: number }>;
-  onCyclesChange: (cycles: Array<{ id: string; startTime: number; endTime: number; ballsScored: number }>) => void;
-  currentCycle: { startTime: number } | null;
-  onCurrentCycleChange: (cycle: { startTime: number } | null) => void;
-  matchTime: number;
   onUndo: (action: string) => void;
 }
 
 export default function TeleopSection({
   balls,
   onBallsChange,
-  cycles,
-  onCyclesChange,
-  currentCycle,
-  onCurrentCycleChange,
-  matchTime,
   onUndo,
 }: TeleopSectionProps) {
   const updateBall = (type: keyof BallCount, delta: number) => {
     const currentValue = balls[type] || 0;
     const newBalls = { ...balls, [type]: Math.max(0, currentValue + delta) };
     onBallsChange(newBalls);
-    onUndo(`${delta > 0 ? '+' : '-'} ${type}`);
+    onUndo(`${delta > 0 ? '+' : ''}${delta} ${type}`);
     
     // Haptic feedback simulation
     if (typeof window !== 'undefined' && 'vibrate' in navigator) {
@@ -35,117 +25,64 @@ export default function TeleopSection({
     }
   };
 
-  const handleStartCycle = () => {
-    if (!currentCycle) {
-      onCurrentCycleChange({ startTime: matchTime });
-    }
-  };
+  const incrementAmounts = [1, 5, 10] as const;
 
-  const handleEndCycle = () => {
-    if (currentCycle) {
-      const cycleTime = currentCycle.startTime - matchTime;
-      const ballsScored = prompt('How many balls scored in this cycle?', '0');
-      if (ballsScored !== null) {
-        const newCycle = {
-          id: `cycle-${Date.now()}`,
-          startTime: currentCycle.startTime,
-          endTime: matchTime,
-          ballsScored: parseInt(ballsScored) || 0,
-        };
-        onCyclesChange([...cycles, newCycle]);
-        onCurrentCycleChange(null);
-      }
-    }
-  };
+  const FuelCounter = ({
+    type,
+    label,
+    bgClass,
+    hoverClass,
+  }: {
+    type: 'made' | 'miss';
+    label: string;
+    bgClass: string;
+    hoverClass: string;
+  }) => (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-semibold text-gray-700">{label}</span>
+        <span className="text-xl font-bold tabular-nums">{balls[type] ?? 0}</span>
+      </div>
+      <div className="flex gap-1">
+        {incrementAmounts.map((n) => (
+          <button
+            key={n}
+            onClick={() => updateBall(type, n)}
+            className={`flex-1 min-h-[56px] py-3 text-sm font-bold rounded-xl ${bgClass} text-white active:scale-95 transition-all button-press ${hoverClass} hover:brightness-110 y2k-pill`}
+          >
+            +{n}
+          </button>
+        ))}
+        <button
+          onClick={() => updateBall(type, -1)}
+          className="min-w-[56px] min-h-[56px] py-3 px-3 bg-gray-200 text-gray-500 font-bold text-sm rounded-xl hover:border-secondary/40 border border-border active:scale-95 transition-all button-press y2k-panel-soft y2k-pill"
+        >
+          −
+        </button>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="p-4 space-y-6">
-      {/* Cycle Tracking */}
-      <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-gray-800">Cycle Tracking</h3>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={handleStartCycle}
-            disabled={!!currentCycle}
-            className={`py-4 font-semibold rounded-lg transition-all ${
-              currentCycle
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-secondary text-white hover:bg-secondary-dark active:scale-95'
-            }`}
-          >
-            Start Cycle
-          </button>
-          <button
-            onClick={handleEndCycle}
-            disabled={!currentCycle}
-            className={`py-4 font-semibold rounded-lg transition-all ${
-              !currentCycle
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-secondary text-white hover:bg-secondary-dark active:scale-95'
-            }`}
-          >
-            End Cycle
-          </button>
-        </div>
-        {currentCycle && (
-          <div className="text-sm text-gray-600 bg-secondary/10 p-2 rounded">
-            Cycle in progress (started at {currentCycle.startTime}s)
-          </div>
-        )}
-        {cycles.length > 0 && (
-          <div className="text-sm text-gray-600">
-            {cycles.length} cycle{cycles.length !== 1 ? 's' : ''} logged
-          </div>
-        )}
-      </div>
-
+    <div className="px-3 py-4 space-y-4">
       {/* Fuel Scoring */}
-      <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-gray-800">Fuel Scoring</h3>
-        
-        {/* Fuel Made/Miss */}
-        <div className="grid grid-cols-2 gap-2">
-          <div className="space-y-2">
-            <button
-              onClick={() => updateBall('made', 1)}
-              className="w-full py-6 bg-primary text-white font-bold text-xl rounded-lg hover:bg-primary-dark active:scale-95 transition-all shadow-lg button-press"
-            >
-              + Fuel Made
-            </button>
-            <div className="flex gap-2">
-              <button
-                onClick={() => updateBall('made', -1)}
-                className="flex-1 py-2 bg-gray-200 text-gray-700 font-semibold rounded hover:bg-gray-300 active:scale-95"
-              >
-                −1
-              </button>
-              <div className="flex-1 py-2 bg-gray-50 text-center font-bold text-lg rounded">
-                {balls.made}
-              </div>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <button
-              onClick={() => updateBall('miss', 1)}
-              className="w-full py-6 bg-secondary text-white font-bold text-xl rounded-lg hover:bg-secondary-dark active:scale-95 transition-all shadow-lg button-press"
-            >
-              + Fuel Miss
-            </button>
-            <div className="flex gap-2">
-              <button
-                onClick={() => updateBall('miss', -1)}
-                className="flex-1 py-2 bg-gray-200 text-gray-700 font-semibold rounded hover:bg-gray-300 active:scale-95"
-              >
-                −1
-              </button>
-              <div className="flex-1 py-2 bg-gray-50 text-center font-bold text-lg rounded">
-                {balls.miss}
-              </div>
-            </div>
-          </div>
+      <div className="space-y-3 y2k-panel y2k-outline rounded-xl p-3">
+        <h3 className="text-base font-semibold text-gray-800">Fuel Scoring</h3>
+        <div className="space-y-4">
+          <FuelCounter
+            type="made"
+            label="Fuel Made"
+            bgClass="y2k-button-primary"
+            hoverClass=""
+          />
+          <FuelCounter
+            type="miss"
+            label="Fuel Miss"
+            bgClass="y2k-button-secondary"
+            hoverClass=""
+          />
         </div>
       </div>
     </div>
   );
 }
-

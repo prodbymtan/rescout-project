@@ -1,5 +1,7 @@
 'use client';
 
+import { IconUndo } from '@/components/icons/HyperIcons';
+
 interface UndoBarProps {
   undoStack: Array<{ action: string; timestamp: number }>;
   onUndo: () => void;
@@ -14,13 +16,18 @@ export default function UndoBar({ undoStack, onUndo }: UndoBarProps) {
   };
 
   return (
-    <div className="bg-secondary/10 border-b-2 border-secondary/30 px-4 py-3 flex items-center justify-between gap-3">
+    <div className="y2k-panel y2k-outline border-b border-border px-3 py-2 flex items-center justify-between gap-2">
       <button
         onClick={onUndo}
-        className="flex items-center gap-2 text-sm text-secondary-dark font-semibold hover:text-secondary transition-colors"
+        aria-label={`Undo ${formatAction(undoStack[0].action)}`}
+        className="flex items-center gap-2 min-w-0 flex-1 text-sm font-semibold text-foreground/90 hover:text-secondary transition-colors"
       >
-        <span className="text-lg">↶</span>
-        <span>Undo: {formatAction(undoStack[0].action)}</span>
+        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-secondary/20 bg-background/60 text-secondary">
+          <IconUndo className="h-[18px] w-[18px]" />
+        </span>
+        <span className="truncate leading-none">
+          <span className="text-secondary font-bold">Undo</span>: {formatAction(undoStack[0].action)}
+        </span>
       </button>
       {undoStack.length > 1 && (
         <span className="text-xs text-gray-500">
@@ -30,4 +37,3 @@ export default function UndoBar({ undoStack, onUndo }: UndoBarProps) {
     </div>
   );
 }
-

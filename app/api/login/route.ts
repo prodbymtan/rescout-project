@@ -25,14 +25,14 @@ export async function POST(req: NextRequest) {
     const url = new URL("/login", req.url);
     url.searchParams.set("error", "1");
     url.searchParams.set("from", from);
-    return NextResponse.redirect(url);
+    return NextResponse.redirect(url, { status: 303 });
   }
 
   // Password good → set cookie + redirect to profile selection
   // Profile selection will then redirect to the original destination
   const profileUrl = new URL("/profile", req.url);
   profileUrl.searchParams.set("from", from);
-  const res = NextResponse.redirect(profileUrl);
+  const res = NextResponse.redirect(profileUrl, { status: 303 });
 
   // Super simple "logged in" flag cookie
   res.cookies.set("scout_auth", "1", {
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 24 * 30, // 30 days
+    maxAge: 60 * 60 * 12, // 12 hours
   });
 
   return res;

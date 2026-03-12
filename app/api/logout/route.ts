@@ -6,7 +6,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const res = NextResponse.redirect(new URL("/login", req.url));
+  const res = NextResponse.redirect(new URL("/login", req.url), { status: 303 });
 
   res.cookies.set("scout_auth", "", {
     httpOnly: true,

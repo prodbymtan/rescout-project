@@ -47,7 +47,7 @@ export function importTeamsFromCSV(csvContent: string): TeamData[] {
 // Import teams from TBA API
 export async function importTeamsFromTBA(eventKey: string): Promise<TeamData[]> {
   const tbaTeams = await fetchEventTeams(eventKey);
-  
+
   return tbaTeams.map((team: TBATeam) => ({
     teamNumber: team.team_number,
     teamName: team.nickname || team.name,
@@ -58,7 +58,7 @@ export async function importTeamsFromTBA(eventKey: string): Promise<TeamData[]> 
 }
 
 // Merge and save teams (avoid duplicates)
-export function mergeAndSaveTeams(newTeams: TeamData[]): TeamData[] {
+export async function mergeAndSaveTeams(newTeams: TeamData[]): Promise<TeamData[]> {
   const existingTeams = storage.getTeams();
   const teamMap = new Map<number, TeamData>();
 
@@ -78,7 +78,7 @@ export function mergeAndSaveTeams(newTeams: TeamData[]): TeamData[] {
   });
 
   const mergedTeams = Array.from(teamMap.values()).sort((a, b) => a.teamNumber - b.teamNumber);
-  storage.saveTeams(mergedTeams);
+  await storage.saveTeams(mergedTeams);
   return mergedTeams;
 }
 
