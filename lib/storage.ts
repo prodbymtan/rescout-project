@@ -20,11 +20,6 @@ export interface TeamData {
   mechanismPhotoUrl?: string;
   photoCapturedAt?: number;
   photoTags?: string[];
-  robotSize?: string;
-  robotHeight?: string;
-  robotWeight?: string;
-  drivetrainStyle?: string;
-  wheelType?: string;
   hasAutoProgram?: 'yes' | 'no' | 'not_sure';
   drivetrainType?: string;
   shooterType?: 'turret' | 'multi_turret' | 'other' | 'not_sure';
@@ -39,18 +34,7 @@ export interface TeamData {
   generalAccuracy?: 'high' | 'medium' | 'low' | 'not_sure';
   climbLevel?: 'low' | 'middle' | 'high' | 'not_sure';
   mostCommonIssue?: string;
-  autoTasks?: string;
-  autoStartingLocations?: string;
-  autoPathing?: string;
-  teleopScoring?: string;
-  teleopSpeedAgility?: string;
-  teleopDrivingAbility?: string;
-  teleopDefenseEffectiveness?: string;
-  teleopDefenseLocations?: string;
-  teleopFouls?: string;
-  endgameAttempted?: string;
   endgameCompleted?: string;
-  otherReliability?: string;
   otherCommunication?: string;
   soloScoreEstimate?: number;
   // Structured pit scouting
@@ -58,20 +42,7 @@ export interface TeamData {
   drivingAbilityRating?: 'smooth' | 'aggressive' | 'shaky' | 'inexperienced';
   reliabilityRating?: 'rock_solid' | 'minor_issues' | 'frequent_issues' | 'dnp_risk';
   defenseRating?: 'none' | 'opportunistic' | 'dedicated' | 'elite';
-  intakeFrom?: Array<'floor' | 'source' | 'station' | 'not_sure'>;
-  /** Where does the robot feed from? Ground = floor, Top = source/station */
-  feedFrom?: 'ground' | 'top' | 'both' | 'not_sure';
-  /** Does the robot have autoaim / vision for shooting? */
   hasAutoAim?: 'yes' | 'no' | 'not_sure';
-  /** Can the robot climb? */
-  canClimb?: 'yes' | 'no' | 'not_sure';
-  /** Cycle length when uninterrupted */
-  cycleLength?: 'fast' | 'average' | 'slow' | 'not_sure';
-  scoresInto?: Array<'high' | 'mid' | 'low' | 'amp' | 'trap'>;
-  rolePreference?: 'scorer' | 'defender' | 'support' | 'mixed';
-  trafficFootprint?: 'slim' | 'normal' | 'wide';
-  needsProtectedLane?: 'yes' | 'no' | 'not_sure';
-  canPassHandoff?: 'yes' | 'no' | 'not_sure';
   commonFailureMode?:
     | 'brownout'
     | 'chain'
@@ -128,16 +99,8 @@ export const storage = {
           city: t.city,
           stateProv: t.state_prov,
           country: t.country,
-          feedFrom: (t as any).feed_from,
           hasAutoAim: (t as any).has_auto_aim,
-          canClimb: (t as any).can_climb,
-          cycleLength: (t as any).cycle_length,
           robotPhotoUrl: t.robot_photo_url,
-          robotSize: t.robot_size,
-          robotHeight: t.robot_height,
-          robotWeight: t.robot_weight,
-          drivetrainStyle: t.drivetrain_style,
-          wheelType: t.wheel_type,
           mechanismPhotoUrl: (t as any).mechanism_photo_url,
           photoCapturedAt: (t as any).photo_captured_at ? Number((t as any).photo_captured_at) : undefined,
           photoTags: (t as any).photo_tags ?? undefined,
@@ -159,12 +122,6 @@ export const storage = {
           drivingAbilityRating: (t as any).driving_ability_rating,
           reliabilityRating: (t as any).reliability_rating,
           defenseRating: (t as any).defense_rating,
-          intakeFrom: (t as any).intake_from ?? undefined,
-          scoresInto: (t as any).scores_into ?? undefined,
-          rolePreference: (t as any).role_preference,
-          trafficFootprint: (t as any).traffic_footprint,
-          needsProtectedLane: (t as any).needs_protected_lane,
-          canPassHandoff: (t as any).can_pass_handoff,
           commonFailureMode: (t as any).common_failure_mode,
           failureModeNotes: (t as any).failure_mode_notes,
           averagePitFixTime: (t as any).average_pit_fix_time,
@@ -184,18 +141,7 @@ export const storage = {
           lastPitUpdatedAt: (t as any).last_pit_updated_at ? Number((t as any).last_pit_updated_at) : undefined,
           pitVersion: (t as any).pit_version ?? undefined,
           pitHistory: (t as any).pit_history ?? undefined,
-          autoTasks: t.auto_tasks,
-          autoStartingLocations: t.auto_starting_locations,
-          autoPathing: t.auto_pathing,
-          teleopScoring: t.teleop_scoring,
-          teleopSpeedAgility: t.teleop_speed_agility,
-          teleopDrivingAbility: t.teleop_driving_ability,
-          teleopDefenseEffectiveness: t.teleop_defense_effectiveness,
-          teleopDefenseLocations: t.teleop_defense_locations,
-          teleopFouls: t.teleop_fouls,
-          endgameAttempted: t.endgame_attempted,
           endgameCompleted: t.endgame_completed,
-          otherReliability: t.other_reliability,
           otherCommunication: t.other_communication,
           soloScoreEstimate: t.solo_score_estimate ? Number(t.solo_score_estimate) : undefined
           };
@@ -384,16 +330,8 @@ export const storage = {
           city: t.city,
           state_prov: t.stateProv,
           country: t.country,
-          feed_from: t.feedFrom,
           has_auto_aim: t.hasAutoAim,
-          can_climb: t.canClimb,
-          cycle_length: t.cycleLength,
           robot_photo_url: t.robotPhotoUrl,
-          robot_size: t.robotSize,
-          robot_height: t.robotHeight,
-          robot_weight: t.robotWeight,
-          drivetrain_style: t.drivetrainStyle,
-          wheel_type: t.wheelType,
           mechanism_photo_url: t.mechanismPhotoUrl,
           photo_captured_at: t.photoCapturedAt ?? null,
           photo_tags: t.photoTags ?? null,
@@ -415,12 +353,6 @@ export const storage = {
           driving_ability_rating: t.drivingAbilityRating,
           reliability_rating: t.reliabilityRating,
           defense_rating: t.defenseRating,
-          intake_from: t.intakeFrom ?? null,
-          scores_into: t.scoresInto ?? null,
-          role_preference: t.rolePreference,
-          traffic_footprint: t.trafficFootprint,
-          needs_protected_lane: t.needsProtectedLane,
-          can_pass_handoff: t.canPassHandoff,
           common_failure_mode: t.commonFailureMode,
           failure_mode_notes: t.failureModeNotes,
           average_pit_fix_time: t.averagePitFixTime,
@@ -440,18 +372,7 @@ export const storage = {
           last_pit_updated_at: t.lastPitUpdatedAt ?? null,
           pit_version: t.pitVersion ?? null,
           pit_history: t.pitHistory ?? null,
-          auto_tasks: t.autoTasks,
-          auto_starting_locations: t.autoStartingLocations,
-          auto_pathing: t.autoPathing,
-          teleop_scoring: t.teleopScoring,
-          teleop_speed_agility: t.teleopSpeedAgility,
-          teleop_driving_ability: t.teleopDrivingAbility,
-          teleop_defense_effectiveness: t.teleopDefenseEffectiveness,
-          teleop_defense_locations: t.teleopDefenseLocations,
-          teleop_fouls: t.teleopFouls,
-          endgame_attempted: t.endgameAttempted,
           endgame_completed: t.endgameCompleted,
-          other_reliability: t.otherReliability,
           other_communication: t.otherCommunication,
           solo_score_estimate: t.soloScoreEstimate
         }));

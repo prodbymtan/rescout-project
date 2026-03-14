@@ -38,19 +38,6 @@ const DEFENSE_OPTIONS: Option<NonNullable<TeamData['defenseRating']>>[] = [
   { value: 'elite', label: 'Elite' },
 ];
 
-const ROLE_OPTIONS: Option<NonNullable<TeamData['rolePreference']>>[] = [
-  { value: 'scorer', label: 'Scorer' },
-  { value: 'defender', label: 'Defender' },
-  { value: 'support', label: 'Support' },
-  { value: 'mixed', label: 'Mixed' },
-];
-
-const TRAFFIC_OPTIONS: Option<NonNullable<TeamData['trafficFootprint']>>[] = [
-  { value: 'slim', label: 'Slim' },
-  { value: 'normal', label: 'Normal' },
-  { value: 'wide', label: 'Wide' },
-];
-
 const YES_NO_UNKNOWN_OPTIONS: Option<'yes' | 'no' | 'not_sure'>[] = [
   { value: 'yes', label: 'Yes' },
   { value: 'no', label: 'No' },
@@ -185,12 +172,6 @@ const PIT_FIELDS: Array<keyof TeamData> = [
   'drivingAbilityRating',
   'reliabilityRating',
   'defenseRating',
-  'intakeFrom',
-  'scoresInto',
-  'rolePreference',
-  'trafficFootprint',
-  'needsProtectedLane',
-  'canPassHandoff',
   'commonFailureMode',
   'failureModeNotes',
   'averagePitFixTime',
@@ -207,18 +188,7 @@ const PIT_FIELDS: Array<keyof TeamData> = [
   'sourceOfClaims',
   'confidenceLevel',
   'needsRecheck',
-  'autoTasks',
-  'autoStartingLocations',
-  'autoPathing',
-  'teleopScoring',
-  'teleopSpeedAgility',
-  'teleopDrivingAbility',
-  'teleopDefenseEffectiveness',
-  'teleopDefenseLocations',
-  'teleopFouls',
-  'endgameAttempted',
   'endgameCompleted',
-  'otherReliability',
   'otherCommunication',
 ];
 
@@ -254,46 +224,6 @@ function SingleSelectChips<T extends string>({
   );
 }
 
-function MultiSelectChips<T extends string>({
-  options,
-  selected,
-  onToggle,
-}: {
-  options: Option<T>[];
-  selected: T[];
-  onToggle: (value: T) => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {options.map((option) => {
-        const active = selected.includes(option.value);
-        return (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => onToggle(option.value)}
-            className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-colors y2k-pill ${
-              active
-                ? 'y2k-button-secondary text-white border-secondary y2k-blue-glow'
-                : 'y2k-panel-soft text-secondary border-secondary/30 hover:border-secondary hover:text-secondary-light'
-            }`}
-          >
-            {option.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function toggleValue<T extends string>(values: T[] | undefined, value: T): T[] {
-  const current = values || [];
-  if (current.includes(value)) {
-    return current.filter((v) => v !== value);
-  }
-  return [...current, value];
-}
-
 function getLabel<T extends string>(options: Option<T>[], value: T | undefined): string | null {
   if (!value) return null;
   return options.find((o) => o.value === value)?.label || null;
@@ -319,12 +249,7 @@ function buildPitSummary(team: TeamData | null): string {
 
   if (chunks.length === 0) {
     const speed = getLabel(SPEED_OPTIONS, team.speedAgilityRating);
-    const role = getLabel(ROLE_OPTIONS, team.rolePreference);
     if (speed) chunks.push(`${speed} speed`);
-    if (role) chunks.push(`${role} role`);
-    if (team.scoresInto && team.scoresInto.length > 0) {
-      chunks.push(`scores ${team.scoresInto.join('/')}`);
-    }
   }
 
   return chunks.join(' · ');
@@ -370,8 +295,7 @@ function computeFitMetrics(team: TeamData | null): {
   };
 
   const offenseFit = clamp(
-    (team.scoresInto?.length || 0) * 8 +
-      (team.speedAgilityRating ? speedScore[team.speedAgilityRating] : 10) +
+    (team.speedAgilityRating ? speedScore[team.speedAgilityRating] : 10) +
       (team.reliabilityRating ? reliabilityScore[team.reliabilityRating] : 12) +
       (team.autoConsistency ? autoScore[team.autoConsistency] : 10),
     0,
@@ -380,9 +304,7 @@ function computeFitMetrics(team: TeamData | null): {
 
   const defenseFit = clamp(
     (team.defenseRating ? defenseScore[team.defenseRating] : 8) +
-      (team.defensiveTolerance === 'shrugs_off' ? 26 : team.defensiveTolerance === 'slows_bit' ? 16 : 8) +
-      (team.trafficFootprint === 'slim' ? 20 : team.trafficFootprint === 'normal' ? 12 : 6) +
-      (team.needsProtectedLane === 'yes' ? -12 : 10),
+      (team.defensiveTolerance === 'shrugs_off' ? 26 : team.defensiveTolerance === 'slows_bit' ? 16 : 8),
     0,
     100
   );

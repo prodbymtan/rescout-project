@@ -5,14 +5,6 @@ import { Match, MatchScoutData, TeamStats } from '@/types';
 import { storage, TeamData } from '@/lib/storage';
 import { calculateTeamStats, predictMatchScore } from '@/lib/stats';
 
-function getRoleLabel(role: TeamData['rolePreference']): string {
-  if (role === 'scorer') return 'Scorer';
-  if (role === 'defender') return 'Defender';
-  if (role === 'support') return 'Support';
-  if (role === 'mixed') return 'Mixed';
-  return 'Unknown';
-}
-
 function buildStrategyNotes(team: TeamData | null): { doItems: string[]; dontItems: string[] } {
   if (!team) return { doItems: [], dontItems: [] };
 
@@ -25,27 +17,15 @@ function buildStrategyNotes(team: TeamData | null): { doItems: string[]; dontIte
   if (team.autoPartnerRequirement === 'needs_space') {
     doItems.push(`Give ${team.teamNumber} space on auto start.`);
   }
-  if (team.needsProtectedLane === 'yes') {
-    doItems.push(`Protect ${team.teamNumber}'s cycle lane in traffic.`);
-  }
-  if (team.intakeFrom && !team.intakeFrom.includes('floor')) {
-    doItems.push(`Feed ${team.teamNumber}; they are limited without floor intake.`);
-  }
   if (team.reliabilityRating === 'dnp_risk' || team.reliabilityRating === 'frequent_issues') {
     doItems.push(`Plan fallback cycles in case ${team.teamNumber} drops out.`);
   }
 
-  if (team.canPassHandoff === 'no') {
-    dontItems.push(`Do not plan handoffs through ${team.teamNumber}.`);
-  }
   if (team.defensiveTolerance === 'falls_apart') {
     dontItems.push(`Do not give ${team.teamNumber} first-contact cycles under heavy defense.`);
   }
   if (team.commonFailureMode === 'brownout') {
     dontItems.push(`Avoid early contact that can trigger ${team.teamNumber} brownouts.`);
-  }
-  if (team.trafficFootprint === 'wide') {
-    dontItems.push(`Do not stack ${team.teamNumber} into tight mid-field lanes.`);
   }
 
   return { doItems, dontItems };
@@ -147,7 +127,7 @@ export default function MatchesScreen() {
                         </span>
                       </div>
                       <div className="text-xs text-gray-400 mt-1">
-                        Role: {getRoleLabel(profile?.rolePreference)} | Recheck: {profile?.needsRecheck ? 'Yes' : 'No'}
+                        Recheck: {profile?.needsRecheck ? 'Yes' : 'No'}
                       </div>
                       {(strategy.doItems.length > 0 || strategy.dontItems.length > 0) && (
                         <div className="mt-2 space-y-1 text-xs">
@@ -201,7 +181,7 @@ export default function MatchesScreen() {
                         </span>
                       </div>
                       <div className="text-xs text-gray-400 mt-1">
-                        Role: {getRoleLabel(profile?.rolePreference)} | Recheck: {profile?.needsRecheck ? 'Yes' : 'No'}
+                        Recheck: {profile?.needsRecheck ? 'Yes' : 'No'}
                       </div>
                       {(strategy.doItems.length > 0 || strategy.dontItems.length > 0) && (
                         <div className="mt-2 space-y-1 text-xs">
