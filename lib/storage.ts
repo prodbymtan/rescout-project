@@ -106,6 +106,12 @@ function parseMatchNumber(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function normalizeMatchLabel(value: string | number): string {
+  const raw = String(value ?? '').trim();
+  const parsed = parseMatchNumber(raw);
+  return parsed == null ? raw : `Q${parsed}`;
+}
+
 function isMeaningfulValue(value: unknown): boolean {
   if (value === undefined || value === null) return false;
   if (typeof value === 'string') return value.trim().length > 0;
@@ -389,7 +395,7 @@ export const storage = {
       if (remoteScoutData) {
         const mappedRemoteScoutData: MatchScoutData[] = remoteScoutData.map(d => ({
           id: d.id,
-          matchNumber: d.match_number.toString(),
+          matchNumber: normalizeMatchLabel(d.match_number),
           alliance: d.alliance as any,
           teamNumber: d.team_number,
           position: parseInt(d.position.replace(/\D/g, '')) as any,
@@ -442,7 +448,7 @@ export const storage = {
       const { data: remoteMatches } = await supabase.from('matches').select('*');
       if (remoteMatches) {
         const mappedRemoteMatches: Match[] = remoteMatches.map(m => ({
-          matchNumber: m.match_number.toString(),
+          matchNumber: normalizeMatchLabel(m.match_number),
           redAlliance: [m.red_1, m.red_2, m.red_3],
           blueAlliance: [m.blue_1, m.blue_2, m.blue_3],
           timestamp: new Date(m.created_at).getTime(),
@@ -498,16 +504,27 @@ export const storage = {
   getScoutData(): MatchScoutData[] {
     if (typeof window === 'undefined') return [];
     const data = localStorage.getItem(STORAGE_KEYS.SCOUT_DATA);
-    return data ? JSON.parse(data) : [];
+    if (!data) return [];
+    const parsed = JSON.parse(data) as MatchScoutData[];
+    return parsed.map((entry) => ({
+      ...entry,
+      matchNumber: normalizeMatchLabel(entry.matchNumber),
+    }));
   },
 
   async saveScoutData(data: MatchScoutData[]): Promise<void> {
     if (typeof window === 'undefined') return;
+    const normalizedData = data.map((entry) => ({
+      ...entry,
+      matchNumber: normalizeMatchLabel(entry.matchNumber),
+    }));
     const previous = this.getScoutData();
     const previousMap = new Map(previous.map((d) => [d.id, d]));
-    const changed = data.filter((d) => stableSerialize(previousMap.get(d.id) ?? null) !== stableSerialize(d));
+    const changed = normalizedData.filter(
+      (d) => stableSerialize(previousMap.get(d.id) ?? null) !== stableSerialize(d)
+    );
 
-    localStorage.setItem(STORAGE_KEYS.SCOUT_DATA, JSON.stringify(data));
+    localStorage.setItem(STORAGE_KEYS.SCOUT_DATA, JSON.stringify(normalizedData));
     storage.emitChange();
 
     // Background push latest to Supabase
@@ -558,18 +575,27 @@ export const storage = {
   getMatches(): Match[] {
     if (typeof window === 'undefined') return [];
     const data = localStorage.getItem(STORAGE_KEYS.MATCHES);
-    return data ? JSON.parse(data) : [];
+    if (!data) return [];
+    const parsed = JSON.parse(data) as Match[];
+    return parsed.map((match) => ({
+      ...match,
+      matchNumber: normalizeMatchLabel(match.matchNumber),
+    }));
   },
 
   async saveMatches(matches: Match[]): Promise<void> {
     if (typeof window === 'undefined') return;
+    const normalizedMatches = matches.map((match) => ({
+      ...match,
+      matchNumber: normalizeMatchLabel(match.matchNumber),
+    }));
     const previous = this.getMatches();
-    const previousMap = new Map(previous.map((m) => [m.matchNumber, m]));
-    const changed = matches.filter(
+    const previousMap = new Map(previous.map((m) => [normalizeMatchLabel(m.matchNumber), m]));
+    const changed = normalizedMatches.filter(
       (m) => stableSerialize(previousMap.get(m.matchNumber) ?? null) !== stableSerialize(m)
     );
 
-    localStorage.setItem(STORAGE_KEYS.MATCHES, JSON.stringify(matches));
+    localStorage.setItem(STORAGE_KEYS.MATCHES, JSON.stringify(normalizedMatches));
     storage.emitChange();
 
     if (!supabase) return;
