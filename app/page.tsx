@@ -19,14 +19,43 @@ export default function Home() {
 
   // Load scout profile and sync on mount
   useEffect(() => {
+    let mounted = true;
+    const runSync = async () => {
+      if (!mounted) return;
+      setIsSyncing(true);
+      try {
+        await storage.syncAll();
+      } finally {
+        if (mounted) setIsSyncing(false);
+      }
+    };
+
     fetch("/api/profile")
       .then((res) => res.json())
       .then((data) => setScoutProfile(data.profile))
       .catch(() => setScoutProfile(null));
 
     // Auto-sync from Supabase
-    setIsSyncing(true);
-    storage.syncAll().finally(() => setIsSyncing(false));
+    void runSync();
+
+    // Keep clients aligned during event use.
+    const intervalId = window.setInterval(() => {
+      void runSync();
+    }, 20000);
+
+    const onOnline = () => void runSync();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void runSync();
+    };
+    window.addEventListener('online', onOnline);
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      mounted = false;
+      window.clearInterval(intervalId);
+      window.removeEventListener('online', onOnline);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, []);
 
   const tabs: { id: Tab; label: string; Icon: typeof IconScout }[] = [

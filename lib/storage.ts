@@ -15,6 +15,32 @@ export interface TeamData {
   city?: string;
   stateProv?: string;
   country?: string;
+  // Legacy fields kept for compatibility with matches-lab screens.
+  robotSize?: string;
+  robotHeight?: string;
+  robotWeight?: string;
+  drivetrainStyle?: string;
+  wheelType?: string;
+  autoTasks?: string;
+  autoStartingLocations?: string;
+  autoPathing?: string;
+  teleopScoring?: string;
+  teleopSpeedAgility?: string;
+  teleopDrivingAbility?: string;
+  teleopDefenseEffectiveness?: string;
+  teleopDefenseLocations?: string;
+  teleopFouls?: string;
+  endgameAttempted?: string;
+  otherReliability?: string;
+  intakeFrom?: Array<'floor' | 'source' | 'station' | 'not_sure'>;
+  feedFrom?: 'ground' | 'top' | 'both' | 'not_sure';
+  canClimb?: 'yes' | 'no' | 'not_sure';
+  cycleLength?: 'fast' | 'average' | 'slow' | 'not_sure';
+  scoresInto?: Array<'high' | 'mid' | 'low' | 'amp' | 'trap'>;
+  rolePreference?: 'scorer' | 'defender' | 'support' | 'mixed';
+  trafficFootprint?: 'slim' | 'normal' | 'wide';
+  needsProtectedLane?: 'yes' | 'no' | 'not_sure';
+  canPassHandoff?: 'yes' | 'no' | 'not_sure';
   // Pit-style scouting fields
   robotPhotoUrl?: string;
   mechanismPhotoUrl?: string;
@@ -198,8 +224,8 @@ export const storage = {
   async saveScoutData(data: MatchScoutData[]): Promise<void> {
     if (typeof window === 'undefined') return;
     const previous = this.getScoutData();
-    const previousIds = new Set(previous.map(d => d.id));
-    const changed = data.filter(d => !previousIds.has(d.id));
+    const previousMap = new Map(previous.map((d) => [d.id, d]));
+    const changed = data.filter((d) => JSON.stringify(previousMap.get(d.id) || null) !== JSON.stringify(d));
 
     localStorage.setItem(STORAGE_KEYS.SCOUT_DATA, JSON.stringify(data));
     storage.emitChange();
@@ -250,8 +276,8 @@ export const storage = {
   async saveMatches(matches: Match[]): Promise<void> {
     if (typeof window === 'undefined') return;
     const previous = this.getMatches();
-    const previousKeys = new Set(previous.map(m => m.matchNumber));
-    const changed = matches.filter(m => !previousKeys.has(m.matchNumber));
+    const previousMap = new Map(previous.map((m) => [m.matchNumber, m]));
+    const changed = matches.filter((m) => JSON.stringify(previousMap.get(m.matchNumber) || null) !== JSON.stringify(m));
 
     localStorage.setItem(STORAGE_KEYS.MATCHES, JSON.stringify(matches));
     storage.emitChange();
