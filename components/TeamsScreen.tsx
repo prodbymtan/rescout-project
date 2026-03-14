@@ -99,21 +99,6 @@ const AUTOAIM_OPTIONS: Option<'yes' | 'no' | 'not_sure'>[] = [
   { value: 'not_sure', label: 'Not sure' },
 ];
 
-const INTAKE_OPTIONS: Option<'floor' | 'source' | 'station' | 'not_sure'>[] = [
-  { value: 'floor', label: 'Floor' },
-  { value: 'source', label: 'Source' },
-  { value: 'station', label: 'Station' },
-  { value: 'not_sure', label: 'Not sure' },
-];
-
-const SCORES_INTO_OPTIONS: Option<'high' | 'mid' | 'low' | 'amp' | 'trap'>[] = [
-  { value: 'high', label: 'High' },
-  { value: 'mid', label: 'Mid' },
-  { value: 'low', label: 'Low' },
-  { value: 'amp', label: 'Amp' },
-  { value: 'trap', label: 'Trap' },
-];
-
 const FAILURE_MODE_OPTIONS: Option<NonNullable<TeamData['commonFailureMode']>>[] = [
   { value: 'brownout', label: 'Brownout' },
   { value: 'chain', label: 'Chain' },
@@ -828,60 +813,6 @@ export default function TeamsScreen() {
               rows={3}
               placeholder="Optional notes for anything not covered by tags"
             />
-          </div>
-        </div>
-
-        <div className="bg-card rounded-lg p-4 border border-border space-y-3">
-          <h2 className="text-lg font-semibold text-gray-800">Capability Flags (Fit)</h2>
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Can intake from</label>
-            <MultiSelectChips
-              options={INTAKE_OPTIONS}
-              selected={selectedTeamData?.intakeFrom || []}
-              onToggle={(value) => updateSelectedTeamField('intakeFrom', toggleValue(selectedTeamData?.intakeFrom, value))}
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Scores into</label>
-            <MultiSelectChips
-              options={SCORES_INTO_OPTIONS}
-              selected={selectedTeamData?.scoresInto || []}
-              onToggle={(value) => updateSelectedTeamField('scoresInto', toggleValue(selectedTeamData?.scoresInto, value))}
-            />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Role preference</label>
-              <SingleSelectChips
-                options={ROLE_OPTIONS}
-                value={selectedTeamData?.rolePreference}
-                onChange={(value) => updateSelectedTeamField('rolePreference', value)}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Traffic footprint</label>
-              <SingleSelectChips
-                options={TRAFFIC_OPTIONS}
-                value={selectedTeamData?.trafficFootprint}
-                onChange={(value) => updateSelectedTeamField('trafficFootprint', value)}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Needs protected lane</label>
-              <SingleSelectChips
-                options={YES_NO_UNKNOWN_OPTIONS}
-                value={selectedTeamData?.needsProtectedLane}
-                onChange={(value) => updateSelectedTeamField('needsProtectedLane', value)}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Can pass / handoff</label>
-              <SingleSelectChips
-                options={YES_NO_UNKNOWN_OPTIONS}
-                value={selectedTeamData?.canPassHandoff}
-                onChange={(value) => updateSelectedTeamField('canPassHandoff', value)}
-              />
-            </div>
           </div>
         </div>
 
