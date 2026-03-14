@@ -9,6 +9,7 @@ import { buildSyntheticScoutData } from '@/lib/synthetic';
 import { importTeamsFromCSV, importTeamsFromTBA, mergeAndSaveTeams } from '@/lib/teamImport';
 
 export default function SettingsScreen() {
+  const [importMode, setImportMode] = useState<'teams' | 'matches'>('teams');
   const [config, setConfig] = useState<GameConfig>({
     scoringZones: ['high', 'low'],
     phases: ['auto', 'teleop', 'endgame'],
@@ -20,6 +21,7 @@ export default function SettingsScreen() {
   const [targetAllianceFuel, setTargetAllianceFuel] = useState(357);
   const [importStatus, setImportStatus] = useState('');
   const [teamCount, setTeamCount] = useState(0);
+  const [matchCount, setMatchCount] = useState(0);
   const [scoutProfile, setScoutProfile] = useState<string | null>(null);
 
   useEffect(() => {
@@ -31,6 +33,7 @@ export default function SettingsScreen() {
     if (savedEventKey) setEventKey(savedEventKey);
     const teams = storage.getTeams();
     setTeamCount(teams.length);
+    setMatchCount(storage.getMatches().length);
 
     // Load scout profile
     fetch("/api/profile")
@@ -204,6 +207,7 @@ export default function SettingsScreen() {
 
       await storage.saveMatches(eventMatches);
       storage.saveEventKey(eventKey);
+      setMatchCount(eventMatches.length);
       setImportStatus(`Imported ${eventMatches.length} matches from TBA (${eventKey}).`);
       setTimeout(() => setImportStatus(''), 5000);
     } catch (error: any) {
@@ -426,11 +430,42 @@ export default function SettingsScreen() {
 
       {/* Team Management */}
       <div className="bg-card rounded-lg p-4 border-2 border-primary/20 shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Team Management</h2>
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">Import Center</h2>
         <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setImportMode('teams')}
+              className={`py-2 rounded-lg text-sm font-semibold transition-colors ${
+                importMode === 'teams'
+                  ? 'bg-primary text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              Teams
+            </button>
+            <button
+              onClick={() => setImportMode('matches')}
+              className={`py-2 rounded-lg text-sm font-semibold transition-colors ${
+                importMode === 'matches'
+                  ? 'bg-primary text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              Matches
+            </button>
+          </div>
+
           <div className="p-3 bg-primary/5 rounded-lg">
             <div className="text-sm font-semibold text-gray-800 mb-1">
-              Current Teams: <span className="text-primary">{teamCount}</span>
+              {importMode === 'teams' ? (
+                <>
+                  Current Teams: <span className="text-primary">{teamCount}</span>
+                </>
+              ) : (
+                <>
+                  Current Matches: <span className="text-primary">{matchCount}</span>
+                </>
+              )}
             </div>
             {importStatus && (
               <div className={`text-xs mt-2 p-2 rounded ${importStatus.startsWith('Error')
@@ -442,37 +477,39 @@ export default function SettingsScreen() {
             )}
           </div>
 
-          {/* Default Import */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Quick Import: North Shore Event 2026
-            </label>
-            <button
-              onClick={handleImportDefaultTeams}
-              className="w-full py-3 bg-secondary text-white font-semibold rounded-lg hover:bg-secondary-dark transition-colors"
-            >
-              Import Teams from North Shore Event (2026marea)
-            </button>
-            <p className="text-xs text-gray-500 mt-1">
-              Imports 38 teams from NE District North Shore Event
-            </p>
-          </div>
+          {importMode === 'teams' && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Quick Import: North Shore Event 2026
+                </label>
+                <button
+                  onClick={handleImportDefaultTeams}
+                  className="w-full py-3 bg-secondary text-white font-semibold rounded-lg hover:bg-secondary-dark transition-colors"
+                >
+                  Import Teams from North Shore Event (2026marea)
+                </button>
+                <p className="text-xs text-gray-500 mt-1">
+                  Imports 38 teams from NE District North Shore Event
+                </p>
+              </div>
 
-          {/* CSV Import */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Import from CSV
-            </label>
-            <button
-              onClick={handleImportFromCSV}
-              className="w-full py-3 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 transition-colors"
-            >
-              Import Teams from CSV (Paste)
-            </button>
-            <p className="text-xs text-gray-500 mt-1">
-              Paste CSV content with team data
-            </p>
-          </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Import from CSV
+                </label>
+                <button
+                  onClick={handleImportFromCSV}
+                  className="w-full py-3 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  Import Teams from CSV (Paste)
+                </button>
+                <p className="text-xs text-gray-500 mt-1">
+                  Paste CSV content with team data
+                </p>
+              </div>
+            </>
+          )}
 
           {/* TBA API Integration */}
           <div className="pt-4 border-t border-gray-200">
@@ -520,39 +557,43 @@ export default function SettingsScreen() {
                     className="flex-1 px-3 py-2 border border-border rounded-lg text-sm"
                   />
                   <button
-                    onClick={handleImportFromTBA}
+                    onClick={importMode === 'teams' ? handleImportFromTBA : handleImportMatchesFromTBA}
                     className="px-4 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-primary-dark transition-colors text-sm"
                   >
-                    Teams
+                    {importMode === 'teams' ? 'Import Teams' : 'Import Matches'}
                   </button>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
                   Event key format: YYYY[district]event (e.g., 2026marea)
                 </p>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <button
-                  onClick={handleImportMatchesFromTBA}
-                  className="px-4 py-2 bg-secondary text-white font-semibold rounded-lg hover:bg-secondary-dark transition-colors text-sm"
-                >
-                  Import Matches (TBA)
-                </button>
-                <button
-                  onClick={handleSeedSyntheticData}
-                  className="px-4 py-2 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-colors text-sm"
-                >
-                  Seed Synthetic Data (TBA + Statbotics)
-                </button>
-              </div>
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">Target alliance fuel for stress test</label>
-                <input
-                  type="number"
-                  value={targetAllianceFuel}
-                  onChange={(e) => setTargetAllianceFuel(Math.max(0, Number(e.target.value) || 0))}
-                  className="w-full px-3 py-2 border border-border rounded-lg text-sm"
-                />
-              </div>
+              {importMode === 'matches' && (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      onClick={handleImportMatchesFromTBA}
+                      className="px-4 py-2 bg-secondary text-white font-semibold rounded-lg hover:bg-secondary-dark transition-colors text-sm"
+                    >
+                      Import Matches (TBA)
+                    </button>
+                    <button
+                      onClick={handleSeedSyntheticData}
+                      className="px-4 py-2 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-colors text-sm"
+                    >
+                      Seed Synthetic Data (TBA + Statbotics)
+                    </button>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Target alliance fuel for stress test</label>
+                    <input
+                      type="number"
+                      value={targetAllianceFuel}
+                      onChange={(e) => setTargetAllianceFuel(Math.max(0, Number(e.target.value) || 0))}
+                      className="w-full px-3 py-2 border border-border rounded-lg text-sm"
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
