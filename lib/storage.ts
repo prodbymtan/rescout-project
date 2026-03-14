@@ -743,6 +743,20 @@ export const storage = {
 
   // --- Scout Data ---
 
+  async purgeSyntheticScoutData(): Promise<void> {
+    if (typeof window === 'undefined') return;
+    const keepReal = this.getScoutData().filter((entry) => !entry.id.startsWith('synthetic-'));
+    localStorage.setItem(STORAGE_KEYS.SCOUT_DATA, JSON.stringify(keepReal));
+    storage.emitChange();
+
+    if (!supabase) return;
+    try {
+      await supabase.from('scout_data').delete().like('id', 'synthetic-%');
+    } catch (error) {
+      console.error('Failed to purge synthetic scout rows from Supabase:', error);
+    }
+  },
+
   getScoutData(): MatchScoutData[] {
     if (typeof window === 'undefined') return [];
     const parsed = readStorageJSON<Array<Partial<MatchScoutData>>>(STORAGE_KEYS.SCOUT_DATA, []);

@@ -248,6 +248,9 @@ export default function SettingsScreen() {
 
       setImportStatus(`Seeding synthetic scout data for ${eventKey} (target ${targetAllianceFuel} fuel/alliance)...`);
 
+      // Prevent duplicate/legacy synthetic rows from inflating match counts.
+      await storage.purgeSyntheticScoutData();
+
       const uniqueTeams = Array.from(
         new Set(matches.flatMap((m) => [...m.redAlliance, ...m.blueAlliance]))
       );
@@ -271,6 +274,7 @@ export default function SettingsScreen() {
       });
 
       await storage.saveScoutData(mergedData);
+      await storage.syncAll();
       storage.saveEventKey(eventKey);
       storage.saveConfig({
         ...config,
