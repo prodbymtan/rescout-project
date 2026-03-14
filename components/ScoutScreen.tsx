@@ -57,6 +57,7 @@ export default function ScoutScreen() {
   const [matchTie, setMatchTie] = useState(false);
   const [majorContributor, setMajorContributor] = useState(false);
   const [phaseKey, setPhaseKey] = useState(0);
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
 
   useEffect(() => {
     setPhaseKey((prev) => prev + 1);
@@ -65,6 +66,72 @@ export default function ScoutScreen() {
   const addUndoAction = (action: string) => {
     setUndoStack((prev) => [{ action, timestamp: Date.now() }, ...prev.slice(0, 2)]);
   };
+
+  const resetForm = () => {
+    setAutoBalls({ made: 0, miss: 0 });
+    setPreloadBalls(0);
+    setTowerClimb('none');
+    setAutoWinner(undefined);
+    setTeleopBalls({ made: 0, miss: 0 });
+    setClimb('none');
+    setParked(false);
+    setGotDefended('none');
+    setPlayedDefense('none');
+    setNotes('');
+    setTags([]);
+    setEnergizedRP(false);
+    setSuperchargedRP(false);
+    setTraversalRP(false);
+    setMatchWin(false);
+    setMatchTie(false);
+    setMajorContributor(false);
+    setUndoStack([]);
+    setEditingEntryId(null);
+  };
+
+  useEffect(() => {
+    if (!matchNumber || teamNumber <= 0) {
+      setEditingEntryId(null);
+      return;
+    }
+
+    const existing = storage
+      .getScoutData()
+      .filter(
+        (entry) =>
+          entry.matchNumber === matchNumber &&
+          entry.teamNumber === teamNumber &&
+          entry.alliance === alliance &&
+          entry.position === position &&
+          (scoutProfile ? entry.scoutName === scoutProfile : true)
+      )
+      .sort((a, b) => b.timestamp - a.timestamp)[0];
+
+    if (!existing) {
+      setEditingEntryId(null);
+      return;
+    }
+
+    setEditingEntryId(existing.id);
+    setAutoBalls(existing.auto?.ballCounts ?? { made: 0, miss: 0 });
+    setPreloadBalls(existing.auto?.preloadBalls ?? 0);
+    setTowerClimb(existing.auto?.towerClimb ?? 'none');
+    setAutoWinner(existing.auto?.autoWinner);
+    setTeleopBalls(existing.teleop?.ballCounts ?? { made: 0, miss: 0 });
+    setClimb(existing.endgame?.climb ?? 'none');
+    setParked(existing.endgame?.parked ?? false);
+    setGotDefended(existing.endgame?.gotDefended ?? 'none');
+    setPlayedDefense(existing.endgame?.playedDefense ?? 'none');
+    setNotes(existing.endgame?.notes ?? '');
+    setTags(Array.isArray(existing.endgame?.tags) ? existing.endgame.tags : []);
+    setEnergizedRP(existing.endgame?.energizedRP ?? false);
+    setSuperchargedRP(existing.endgame?.superchargedRP ?? false);
+    setTraversalRP(existing.endgame?.traversalRP ?? false);
+    setMatchWin(existing.endgame?.matchWin ?? false);
+    setMatchTie(existing.endgame?.matchTie ?? false);
+    setMajorContributor(existing.endgame?.majorContributor ?? false);
+    setUndoStack([]);
+  }, [matchNumber, teamNumber, alliance, position, scoutProfile]);
 
   const handleSubmit = () => {
     const config = storage.getConfig();
@@ -87,7 +154,7 @@ export default function ScoutScreen() {
     }
 
     const scoutData: MatchScoutData = {
-      id: `${matchNumber}-${teamNumber}-${Date.now()}`,
+      id: editingEntryId ?? `${matchNumber}-${teamNumber}-${Date.now()}`,
       matchNumber,
       alliance,
       teamNumber,
@@ -121,28 +188,8 @@ export default function ScoutScreen() {
     };
 
     storage.addScoutData(scoutData);
-    
-    // Reset form
-    setAutoBalls({ made: 0, miss: 0 });
-    setPreloadBalls(0);
-    setTowerClimb('none');
-    setAutoWinner(undefined);
-    setTeleopBalls({ made: 0, miss: 0 });
-    setClimb('none');
-    setParked(false);
-    setGotDefended('none');
-    setPlayedDefense('none');
-    setNotes('');
-    setTags([]);
-    setEnergizedRP(false);
-    setSuperchargedRP(false);
-    setTraversalRP(false);
-    setMatchWin(false);
-    setMatchTie(false);
-    setMajorContributor(false);
-    setUndoStack([]);
-    
-    alert('Match data saved!');
+
+    alert(editingEntryId ? 'Match data updated!' : 'Match data saved!');
   };
 
   const totalTeleopMade = teleopBalls.made;
@@ -165,6 +212,24 @@ export default function ScoutScreen() {
       {undoStack.length > 0 && (
         <UndoBar undoStack={undoStack} onUndo={() => setUndoStack((prev) => prev.slice(1))} />
       )}
+      <div className="px-3 pt-2">
+        {editingEntryId ? (
+          <div className="text-xs px-3 py-2 rounded-lg border border-orange-300 bg-orange-50 text-orange-700 flex items-center justify-between">
+            <span>Editing existing scout entry for this match/team.</span>
+            <button
+              type="button"
+              onClick={resetForm}
+              className="ml-2 px-2 py-1 rounded border border-orange-400 text-orange-700 hover:bg-orange-100"
+            >
+              New Blank Entry
+            </button>
+          </div>
+        ) : (
+          <div className="text-xs px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-gray-600">
+            No existing entry found for this match/team slot.
+          </div>
+        )}
+      </div>
 
       {/* Phase Tabs */}
       <div className="flex border-b border-border bg-card shrink-0 px-2 py-2 gap-2">
@@ -253,7 +318,7 @@ export default function ScoutScreen() {
           onClick={handleSubmit}
           className="w-full min-h-[56px] py-3 text-white font-bold text-base rounded-xl active:scale-[0.98] transition-all shadow-lg button-press y2k-button-primary y2k-pill y2k-orange-glow"
         >
-          ✓ Submit Match Data
+          {editingEntryId ? '✓ Update Match Data' : '✓ Submit Match Data'}
         </button>
       </div>
     </div>
