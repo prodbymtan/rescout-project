@@ -337,6 +337,116 @@ export const storage = {
     if (typeof window === 'undefined') return;
     window.dispatchEvent(new Event('storage:rebuilt:update'));
   },
+
+  async pushLocalToCloud(): Promise<{ scout: number; matches: number; teams: number }> {
+    if (typeof window === 'undefined' || !supabase) {
+      return { scout: 0, matches: 0, teams: 0 };
+    }
+
+    const localScoutData = this.getScoutData();
+    const localMatches = this.getMatches();
+    const localTeams = this.getTeams();
+
+    const scoutPayload = localScoutData
+      .map((d) => {
+        const parsedMatchNumber = parseMatchNumber(d.matchNumber);
+        if (parsedMatchNumber == null) return null;
+        return {
+          id: d.id,
+          match_number: parsedMatchNumber,
+          alliance: d.alliance,
+          team_number: d.teamNumber,
+          position: `${d.alliance}${d.position}`,
+          scout_name: d.scoutName,
+          auto_data: d.auto,
+          teleop_data: d.teleop,
+          endgame_data: d.endgame,
+        };
+      })
+      .filter((row): row is NonNullable<typeof row> => row !== null);
+
+    const matchesPayload = localMatches
+      .map((m) => {
+        const parsedMatchNumber = parseMatchNumber(m.matchNumber);
+        if (parsedMatchNumber == null) return null;
+        return {
+          match_number: parsedMatchNumber,
+          red_1: m.redAlliance[0],
+          red_2: m.redAlliance[1],
+          red_3: m.redAlliance[2],
+          blue_1: m.blueAlliance[0],
+          blue_2: m.blueAlliance[1],
+          blue_3: m.blueAlliance[2],
+        };
+      })
+      .filter((row): row is NonNullable<typeof row> => row !== null);
+
+    const teamsPayload: Array<Record<string, unknown>> = localTeams.map((t) => ({
+      team_number: t.teamNumber,
+      updated_at: new Date().toISOString(),
+      team_name: t.teamName,
+      city: t.city,
+      state_prov: t.stateProv,
+      country: t.country,
+      robot_photo_url: t.robotPhotoUrl,
+      mechanism_photo_url: t.mechanismPhotoUrl,
+      photo_captured_at: t.photoCapturedAt ?? null,
+      photo_tags: t.photoTags ?? null,
+      has_auto_program: t.hasAutoProgram,
+      drivetrain_type: t.drivetrainType,
+      shooter_type: t.shooterType,
+      max_fuel_capacity: t.maxFuelCapacity,
+      intake_location: t.intakeLocation,
+      auto_flexibility: t.autoFlexibility,
+      avg_cycle_length: t.avgCycleLength,
+      basic_strats: t.basicStrats,
+      can_pass_under_trench: t.canPassUnderTrench,
+      can_get_stuck_on_bump: t.canGetStuckOnBump,
+      can_play_defense: t.canPlayDefense,
+      general_accuracy: t.generalAccuracy,
+      climb_level: t.climbLevel,
+      most_common_issue: t.mostCommonIssue,
+      speed_agility_rating: t.speedAgilityRating,
+      driving_ability_rating: t.drivingAbilityRating,
+      reliability_rating: t.reliabilityRating,
+      defense_rating: t.defenseRating,
+      common_failure_mode: t.commonFailureMode,
+      failure_mode_notes: t.failureModeNotes,
+      average_pit_fix_time: t.averagePitFixTime,
+      spare_parts_readiness: t.sparePartsReadiness,
+      auto_consistency: t.autoConsistency,
+      auto_partner_requirement: t.autoPartnerRequirement,
+      cycle_preference: t.cyclePreference,
+      defensive_tolerance: t.defensiveTolerance,
+      best_auto_summary: t.bestAutoSummary,
+      avg_teleop_cycle_time: t.avgTeleopCycleTime,
+      role_in_playoffs: t.roleInPlayoffs,
+      upgrade_wish: t.upgradeWish,
+      interview_quote: t.interviewQuote,
+      source_of_claims: t.sourceOfClaims,
+      confidence_level: t.confidenceLevel,
+      needs_recheck: t.needsRecheck ?? null,
+      last_pit_updated_at: t.lastPitUpdatedAt ?? null,
+      pit_version: t.pitVersion ?? null,
+      pit_history: t.pitHistory ?? null,
+      endgame_completed: t.endgameCompleted,
+      other_communication: t.otherCommunication,
+      solo_score_estimate: t.soloScoreEstimate,
+    }));
+
+    if (teamsPayload.length > 0) {
+      await upsertTeamsWithSchemaFallback(teamsPayload);
+    }
+    if (matchesPayload.length > 0) {
+      await supabase.from('matches').upsert(matchesPayload);
+    }
+    if (scoutPayload.length > 0) {
+      await supabase.from('scout_data').upsert(scoutPayload);
+    }
+
+    await this.syncAll();
+    return { scout: scoutPayload.length, matches: matchesPayload.length, teams: teamsPayload.length };
+  },
   // --- Syncing Logic ---
 
   async syncAll(): Promise<void> {

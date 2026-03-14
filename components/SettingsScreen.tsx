@@ -347,15 +347,18 @@ export default function SettingsScreen() {
   };
 
   const handlePushLocalToCloud = async () => {
-    setImportStatus('Pushing local data to cloud...');
-    await storage.saveScoutData(storage.getScoutData());
-    await storage.saveMatches(storage.getMatches());
-    await storage.saveTeams(storage.getTeams());
-    await storage.syncAll();
-    setTeamCount(storage.getTeams().length);
-    setMatchCount(storage.getMatches().length);
-    setImportStatus('Local data pushed to cloud.');
-    setTimeout(() => setImportStatus(''), 3000);
+    try {
+      setImportStatus('Pushing local data to cloud...');
+      const pushed = await storage.pushLocalToCloud();
+      setTeamCount(storage.getTeams().length);
+      setMatchCount(storage.getMatches().length);
+      setImportStatus(
+        `Local data pushed. Scout rows: ${pushed.scout}, Matches: ${pushed.matches}, Teams: ${pushed.teams}.`
+      );
+      setTimeout(() => setImportStatus(''), 5000);
+    } catch (error: any) {
+      setImportStatus(`Error: ${error?.message || String(error)}`);
+    }
   };
 
   return (
