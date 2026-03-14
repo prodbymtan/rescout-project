@@ -162,6 +162,7 @@ const CONFIDENCE_OPTIONS: Option<NonNullable<TeamData['confidenceLevel']>>[] = [
 ];
 
 const PIT_FIELDS: Array<keyof TeamData> = [
+  'hasAutoProgram',
   'drivetrainType',
   'shooterType',
   'maxFuelCapacity',
@@ -312,7 +313,7 @@ function buildPitSummary(team: TeamData | null): string {
   if (shooter) chunks.push(`shooter: ${shooter}`);
   if (intake) chunks.push(`intake: ${intake}`);
   if (autoaim) chunks.push(`autoaim: ${autoaim}`);
-  if (autoFlex) chunks.push(`auto flex: ${autoFlex}`);
+  if (autoFlex && team.hasAutoProgram !== 'no') chunks.push(`auto flex: ${autoFlex}`);
   if (accuracy) chunks.push(`accuracy: ${accuracy}`);
   if (climb) chunks.push(`climb: ${climb}`);
 
@@ -534,6 +535,7 @@ export default function TeamsScreen() {
 
   const fit = computeFitMetrics(selectedTeamData);
   const pitSummary = buildPitSummary(selectedTeamData);
+  const showAutoFields = selectedTeamData?.hasAutoProgram !== 'no';
 
   if (selectedTeam !== null) {
     return (
@@ -557,7 +559,7 @@ export default function TeamsScreen() {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Pit Summary (auto)</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Pit Summary</label>
               <div className="w-full px-3 py-2 border border-border rounded-lg text-sm bg-gray-50 text-gray-700 min-h-[40px]">
                 {pitSummary || 'Add structured tags to auto-generate summary'}
               </div>
@@ -569,6 +571,14 @@ export default function TeamsScreen() {
           <h2 className="text-lg font-bold text-gray-800">Scouting Prompts</h2>
           <p className="text-sm text-gray-600">Core robot capabilities and match fit.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Has auto?</label>
+              <SingleSelectChips
+                options={YES_NO_UNKNOWN_OPTIONS}
+                value={selectedTeamData?.hasAutoProgram}
+                onChange={(value) => updateSelectedTeamField('hasAutoProgram', value)}
+              />
+            </div>
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1.5">Drivetrain type</label>
               <input
@@ -605,14 +615,16 @@ export default function TeamsScreen() {
                 onChange={(value) => updateSelectedTeamField('intakeLocation', value)}
               />
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Auto flexibility</label>
-              <SingleSelectChips
-                options={AUTO_FLEX_OPTIONS}
-                value={selectedTeamData?.autoFlexibility}
-                onChange={(value) => updateSelectedTeamField('autoFlexibility', value)}
-              />
-            </div>
+            {showAutoFields && (
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Auto flexibility</label>
+                <SingleSelectChips
+                  options={AUTO_FLEX_OPTIONS}
+                  value={selectedTeamData?.autoFlexibility}
+                  onChange={(value) => updateSelectedTeamField('autoFlexibility', value)}
+                />
+              </div>
+            )}
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1.5">Avg cycle length</label>
               <input
@@ -859,22 +871,26 @@ export default function TeamsScreen() {
         <div className="bg-card rounded-lg p-4 border border-border space-y-3">
           <h2 className="text-lg font-semibold text-gray-800">Strategic Constraints</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Auto consistency</label>
-              <SingleSelectChips
-                options={AUTO_CONSISTENCY_OPTIONS}
-                value={selectedTeamData?.autoConsistency}
-                onChange={(value) => updateSelectedTeamField('autoConsistency', value)}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Auto partner requirement</label>
-              <SingleSelectChips
-                options={AUTO_REQUIREMENT_OPTIONS}
-                value={selectedTeamData?.autoPartnerRequirement}
-                onChange={(value) => updateSelectedTeamField('autoPartnerRequirement', value)}
-              />
-            </div>
+            {showAutoFields && (
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Auto consistency</label>
+                <SingleSelectChips
+                  options={AUTO_CONSISTENCY_OPTIONS}
+                  value={selectedTeamData?.autoConsistency}
+                  onChange={(value) => updateSelectedTeamField('autoConsistency', value)}
+                />
+              </div>
+            )}
+            {showAutoFields && (
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Auto partner requirement</label>
+                <SingleSelectChips
+                  options={AUTO_REQUIREMENT_OPTIONS}
+                  value={selectedTeamData?.autoPartnerRequirement}
+                  onChange={(value) => updateSelectedTeamField('autoPartnerRequirement', value)}
+                />
+              </div>
+            )}
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">Cycle preference</label>
               <SingleSelectChips
@@ -897,16 +913,18 @@ export default function TeamsScreen() {
         <div className="bg-card rounded-lg p-4 border border-border space-y-3">
           <h2 className="text-lg font-semibold text-gray-800">Pit Interview Prompts</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Best auto + start position</label>
-              <input
-                type="text"
-                defaultValue={selectedTeamData?.bestAutoSummary}
-                onBlur={(e) => updateSelectedTeamField('bestAutoSummary', e.target.value)}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm"
-                placeholder="What is your best auto and where do you start?"
-              />
-            </div>
+            {showAutoFields && (
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Best auto + start position</label>
+                <input
+                  type="text"
+                  defaultValue={selectedTeamData?.bestAutoSummary}
+                  onBlur={(e) => updateSelectedTeamField('bestAutoSummary', e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm"
+                  placeholder="What is your best auto and where do you start?"
+                />
+              </div>
+            )}
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">Avg teleop cycle time</label>
               <input
