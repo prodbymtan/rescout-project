@@ -39,39 +39,24 @@ export default function MatchesScreen() {
   const [selectedMatch, setSelectedMatch] = useState<string | null>(null);
 
   useEffect(() => {
-    const data = storage.getScoutData();
-    setScoutData(data);
-    
-    const storedMatches = storage.getMatches();
-    if (storedMatches.length === 0) {
-      // Generate some sample matches
-      const sampleMatches: Match[] = [
-        {
-          matchNumber: 'Q42',
-          redAlliance: [3467, 1768, 6329],
-          blueAlliance: [456, 4905, 364],
-          status: 'upcoming',
-          timestamp: Date.now(),
-        },
-        {
-          matchNumber: 'Q43',
-          redAlliance: [5846, 254, 118],
-          blueAlliance: [1678, 3309, 5012],
-          status: 'upcoming',
-          timestamp: Date.now() + 3600000,
-        },
-      ];
-      storage.saveMatches(sampleMatches);
-      setMatches(sampleMatches);
-    } else {
-      setMatches(storedMatches);
-    }
+    const loadFromStorage = () => {
+      const data = storage.getScoutData();
+      const storedMatches = storage.getMatches();
 
-    // Calculate team stats
-    const uniqueTeams = Array.from(new Set(data.map((d) => d.teamNumber)));
-    const stats = uniqueTeams.map((teamNum) => calculateTeamStats(teamNum, data));
-    setTeamStats(stats);
-    setTeamProfiles(storage.getTeams());
+      setScoutData(data);
+      setMatches(storedMatches);
+
+      const uniqueTeams = Array.from(new Set(data.map((d) => d.teamNumber)));
+      const stats = uniqueTeams.map((teamNum) => calculateTeamStats(teamNum, data));
+      setTeamStats(stats);
+      setTeamProfiles(storage.getTeams());
+    };
+
+    loadFromStorage();
+    window.addEventListener('storage:rebuilt:update', loadFromStorage);
+    return () => {
+      window.removeEventListener('storage:rebuilt:update', loadFromStorage);
+    };
   }, []);
 
   const selectedMatchData = selectedMatch

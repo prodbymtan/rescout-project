@@ -35,11 +35,21 @@ export default function SettingsScreen() {
     setTeamCount(teams.length);
     setMatchCount(storage.getMatches().length);
 
+    const handleStorageUpdate = () => {
+      setTeamCount(storage.getTeams().length);
+      setMatchCount(storage.getMatches().length);
+    };
+    window.addEventListener('storage:rebuilt:update', handleStorageUpdate);
+
     // Load scout profile
     fetch("/api/profile")
       .then((res) => res.json())
       .then((data) => setScoutProfile(data.profile))
       .catch(() => setScoutProfile(null));
+
+    return () => {
+      window.removeEventListener('storage:rebuilt:update', handleStorageUpdate);
+    };
   }, []);
 
   const handleChangeProfile = () => {
@@ -327,6 +337,15 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleForceCloudSync = async () => {
+    setImportStatus('Syncing with cloud...');
+    await storage.syncAll();
+    setTeamCount(storage.getTeams().length);
+    setMatchCount(storage.getMatches().length);
+    setImportStatus('Cloud sync complete.');
+    setTimeout(() => setImportStatus(''), 3000);
+  };
+
   return (
     <div className="p-4 space-y-6">
       <div className="bg-card rounded-lg p-4 border-2 border-primary/20 shadow-sm">
@@ -467,6 +486,12 @@ export default function SettingsScreen() {
                 </>
               )}
             </div>
+            <button
+              onClick={handleForceCloudSync}
+              className="mt-2 px-3 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-primary-dark transition-colors text-xs"
+            >
+              Force Cloud Sync
+            </button>
             {importStatus && (
               <div className={`text-xs mt-2 p-2 rounded ${importStatus.startsWith('Error')
                   ? 'bg-red-50 text-red-700'
