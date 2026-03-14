@@ -95,17 +95,36 @@ export async function fetchEventMatches(eventKey: string): Promise<TBAMatch[]> {
   }
 }
 
-// Parse team number from team key (e.g., "frc69" -> 69)
-export function parseTeamNumber(teamKey: string): number {
-  return parseInt(teamKey.replace('frc', ''), 10);
+// Parse team number from team key/value (e.g., "frc69" -> 69)
+export function parseTeamNumber(teamKey: string | number | null | undefined): number | null {
+  if (typeof teamKey === 'number') {
+    return Number.isFinite(teamKey) && teamKey > 0 ? Math.trunc(teamKey) : null;
+  }
+
+  if (typeof teamKey !== 'string') return null;
+
+  const normalized = teamKey.trim().toLowerCase();
+  if (!normalized) return null;
+
+  const match = normalized.match(/\d+/);
+  if (!match) return null;
+
+  const parsed = Number.parseInt(match[0], 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
 // Convert TBA match to our Match format
 export function convertTBAMatch(tbaMatch: TBAMatch): { redAlliance: number[]; blueAlliance: number[] } | null {
   if (!tbaMatch.alliances) return null;
 
-  const red = tbaMatch.alliances.red?.team_keys.map(parseTeamNumber) || [];
-  const blue = tbaMatch.alliances.blue?.team_keys.map(parseTeamNumber) || [];
+  const red =
+    tbaMatch.alliances.red?.team_keys
+      .map((teamKey) => parseTeamNumber(teamKey))
+      .filter((team): team is number => team !== null) || [];
+  const blue =
+    tbaMatch.alliances.blue?.team_keys
+      .map((teamKey) => parseTeamNumber(teamKey))
+      .filter((team): team is number => team !== null) || [];
 
   return { redAlliance: red, blueAlliance: blue };
 }

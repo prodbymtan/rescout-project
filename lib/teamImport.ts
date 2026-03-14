@@ -33,7 +33,7 @@ function parseCsvLine(line: string): string[] {
 }
 
 function normalizeHeader(header: string): string {
-  return header.trim().toLowerCase().replace(/\s+/g, '_');
+  return header.replace(/^\ufeff/, '').trim().toLowerCase().replace(/\s+/g, '_');
 }
 
 // Parse CSV content and import teams
@@ -46,7 +46,7 @@ export function importTeamsFromCSV(csvContent: string): TeamData[] {
 
   const headerCandidate = parseCsvLine(lines[0]).map(normalizeHeader);
   const hasHeader = headerCandidate.some((h) =>
-    ['team_number', 'team', 'teamnum', 'team_number_'].includes(h)
+    ['team_number', 'team', 'teamnum', 'team_number_', 'teamnumber'].includes(h)
   );
   const headers = hasHeader ? headerCandidate : ['team_number', 'team_name', 'city', 'state_prov', 'country'];
   const startIndex = hasHeader ? 1 : 0;
@@ -57,7 +57,7 @@ export function importTeamsFromCSV(csvContent: string): TeamData[] {
     if (values.length === 0) continue;
 
     const teamNumberIndex = headers.findIndex((h) =>
-      ['team_number', 'team', 'teamnum', 'team_number_'].includes(h)
+      ['team_number', 'team', 'teamnum', 'team_number_', 'teamnumber'].includes(h)
     );
     const teamNumberRaw = teamNumberIndex >= 0 ? values[teamNumberIndex] : values[0];
     const parsedTeamNumber = parseTeamNumber(teamNumberRaw);

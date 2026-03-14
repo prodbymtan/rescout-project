@@ -2,9 +2,11 @@
 -- Adds new pit scouting columns without dropping data.
 
 alter table if exists teams
+  add column if not exists robot_photo_url text,
   add column if not exists mechanism_photo_url text,
   add column if not exists photo_captured_at bigint,
   add column if not exists photo_tags jsonb,
+  add column if not exists has_auto_aim text,
   add column if not exists has_auto_program text,
   add column if not exists drivetrain_type text,
   add column if not exists shooter_type text,
@@ -41,4 +43,7 @@ alter table if exists teams
   add column if not exists needs_recheck boolean,
   add column if not exists last_pit_updated_at bigint,
   add column if not exists pit_version integer,
-  add column if not exists pit_history jsonb;
+  add column if not exists pit_history jsonb,
+  add column if not exists endgame_completed text,
+  add column if not exists solo_score_estimate numeric,
+  add column if not exists other_communication text;

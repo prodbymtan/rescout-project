@@ -106,6 +106,118 @@ function parseMatchNumber(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function isMeaningfulValue(value: unknown): boolean {
+  if (value === undefined || value === null) return false;
+  if (typeof value === 'string') return value.trim().length > 0;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === 'object') return Object.keys(value as Record<string, unknown>).length > 0;
+  return true;
+}
+
+function normalizeForCompare(value: unknown): unknown {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+  if (Array.isArray(value)) {
+    const normalized = value
+      .map((item) => normalizeForCompare(item))
+      .filter((item) => item !== undefined);
+    return normalized.length > 0 ? normalized : undefined;
+  }
+  if (typeof value === 'object') {
+    const normalizedEntries = Object.entries(value as Record<string, unknown>)
+      .map(([key, entry]) => [key, normalizeForCompare(entry)] as const)
+      .filter(([, entry]) => entry !== undefined)
+      .sort(([a], [b]) => a.localeCompare(b));
+    return normalizedEntries.length > 0 ? Object.fromEntries(normalizedEntries) : undefined;
+  }
+  return value;
+}
+
+function stableSerialize(value: unknown): string {
+  return JSON.stringify(normalizeForCompare(value) ?? null);
+}
+
+function mergeTeamRecords(
+  localTeam: TeamData | undefined,
+  remoteTeam: TeamData | undefined,
+  localFreshness: number,
+  remoteFreshness: number
+): TeamData | undefined {
+  if (!localTeam && !remoteTeam) return undefined;
+  if (!localTeam) return remoteTeam;
+  if (!remoteTeam) return localTeam;
+
+  const localVersion = localTeam.pitVersion ?? 0;
+  const remoteVersion = remoteTeam.pitVersion ?? 0;
+  const shouldPreferRemote =
+    remoteFreshness > localFreshness ||
+    (remoteFreshness === localFreshness && remoteVersion > localVersion);
+
+  const preferred = shouldPreferRemote ? remoteTeam : localTeam;
+  const fallback = shouldPreferRemote ? localTeam : remoteTeam;
+  const merged: TeamData = { teamNumber: preferred.teamNumber };
+
+  const keys = new Set<keyof TeamData>([
+    ...(Object.keys(preferred) as Array<keyof TeamData>),
+    ...(Object.keys(fallback) as Array<keyof TeamData>),
+  ]);
+
+  keys.forEach((key) => {
+    if (key === 'teamNumber') return;
+    const preferredValue = preferred[key];
+    const fallbackValue = fallback[key];
+    (merged as Record<keyof TeamData, unknown>)[key] = isMeaningfulValue(preferredValue)
+      ? preferredValue
+      : fallbackValue;
+  });
+
+  return merged;
+}
+
+const unsupportedTeamsColumns = new Set<string>();
+
+function stripUnsupportedTeamsColumns(row: Record<string, unknown>): Record<string, unknown> {
+  if (unsupportedTeamsColumns.size === 0) return row;
+  const next = { ...row };
+  unsupportedTeamsColumns.forEach((column) => {
+    delete next[column];
+  });
+  return next;
+}
+
+function extractMissingTeamsColumn(errorMessage: string | undefined): string | null {
+  if (!errorMessage) return null;
+  const match = errorMessage.match(/column\s+teams\.([a-z0-9_]+)\s+does not exist/i);
+  return match?.[1] ?? null;
+}
+
+async function upsertTeamsWithSchemaFallback(rows: Array<Record<string, unknown>>): Promise<void> {
+  if (!supabase || rows.length === 0) return;
+
+  let payload = rows.map(stripUnsupportedTeamsColumns);
+
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const { error } = await supabase.from('teams').upsert(payload);
+    if (!error) return;
+
+    const missingColumn = extractMissingTeamsColumn(error.message);
+    if (!missingColumn || unsupportedTeamsColumns.has(missingColumn)) {
+      throw error;
+    }
+
+    unsupportedTeamsColumns.add(missingColumn);
+    payload = payload.map((row) => {
+      const next = { ...row };
+      delete next[missingColumn];
+      return next;
+    });
+    console.warn(`Teams column missing in Supabase, skipping '${missingColumn}' until schema is updated.`);
+  }
+}
+
 export const storage = {
   emitChange(): void {
     if (typeof window === 'undefined') return;
@@ -125,78 +237,99 @@ export const storage = {
       // 1. Sync Teams
       const { data: remoteTeams } = await supabase.from('teams').select('*');
       if (remoteTeams) {
-        const mappedRemoteTeams: TeamData[] = remoteTeams.map(t => {
-          return {
-            teamNumber: t.team_number,
-            teamName: t.team_name,
-            city: t.city,
-            stateProv: t.state_prov,
-            country: t.country,
-            hasAutoAim: (t as any).has_auto_aim,
-            robotPhotoUrl: t.robot_photo_url,
-            mechanismPhotoUrl: (t as any).mechanism_photo_url,
-            photoCapturedAt: (t as any).photo_captured_at ? Number((t as any).photo_captured_at) : undefined,
-            photoTags: (t as any).photo_tags ?? undefined,
-            hasAutoProgram: (t as any).has_auto_program,
-            drivetrainType: (t as any).drivetrain_type,
-            shooterType: (t as any).shooter_type,
-            maxFuelCapacity: (t as any).max_fuel_capacity,
-            intakeLocation: (t as any).intake_location,
-            autoFlexibility: (t as any).auto_flexibility,
-            avgCycleLength: (t as any).avg_cycle_length,
-            basicStrats: (t as any).basic_strats,
-            canPassUnderTrench: (t as any).can_pass_under_trench,
-            canGetStuckOnBump: (t as any).can_get_stuck_on_bump,
-            canPlayDefense: (t as any).can_play_defense,
-            generalAccuracy: (t as any).general_accuracy,
-            climbLevel: (t as any).climb_level,
-            mostCommonIssue: (t as any).most_common_issue,
-            speedAgilityRating: (t as any).speed_agility_rating,
-            drivingAbilityRating: (t as any).driving_ability_rating,
-            reliabilityRating: (t as any).reliability_rating,
-            defenseRating: (t as any).defense_rating,
-            commonFailureMode: (t as any).common_failure_mode,
-            failureModeNotes: (t as any).failure_mode_notes,
-            averagePitFixTime: (t as any).average_pit_fix_time,
-            sparePartsReadiness: (t as any).spare_parts_readiness,
-            autoConsistency: (t as any).auto_consistency,
-            autoPartnerRequirement: (t as any).auto_partner_requirement,
-            cyclePreference: (t as any).cycle_preference,
-            defensiveTolerance: (t as any).defensive_tolerance,
-            bestAutoSummary: (t as any).best_auto_summary,
-            avgTeleopCycleTime: (t as any).avg_teleop_cycle_time,
-            roleInPlayoffs: (t as any).role_in_playoffs,
-            upgradeWish: (t as any).upgrade_wish,
-            interviewQuote: (t as any).interview_quote,
-            sourceOfClaims: (t as any).source_of_claims,
-            confidenceLevel: (t as any).confidence_level,
-            needsRecheck: (t as any).needs_recheck ?? undefined,
-            lastPitUpdatedAt: (t as any).last_pit_updated_at ? Number((t as any).last_pit_updated_at) : undefined,
-            pitVersion: (t as any).pit_version ?? undefined,
-            pitHistory: (t as any).pit_history ?? undefined,
-            endgameCompleted: t.endgame_completed,
-            otherCommunication: t.other_communication,
-            soloScoreEstimate: t.solo_score_estimate ? Number(t.solo_score_estimate) : undefined,
-          };
-        });
+        const mappedRemoteTeams: TeamData[] = remoteTeams.map((t) => ({
+          teamNumber: t.team_number,
+          teamName: t.team_name ?? undefined,
+          city: t.city ?? undefined,
+          stateProv: t.state_prov ?? undefined,
+          country: t.country ?? undefined,
+          hasAutoAim: (t as any).has_auto_aim ?? undefined,
+          robotPhotoUrl: t.robot_photo_url ?? undefined,
+          mechanismPhotoUrl: (t as any).mechanism_photo_url ?? undefined,
+          photoCapturedAt: (t as any).photo_captured_at ? Number((t as any).photo_captured_at) : undefined,
+          photoTags: (t as any).photo_tags ?? undefined,
+          hasAutoProgram: (t as any).has_auto_program ?? undefined,
+          drivetrainType: (t as any).drivetrain_type ?? undefined,
+          shooterType: (t as any).shooter_type ?? undefined,
+          maxFuelCapacity: (t as any).max_fuel_capacity ?? undefined,
+          intakeLocation: (t as any).intake_location ?? undefined,
+          autoFlexibility: (t as any).auto_flexibility ?? undefined,
+          avgCycleLength: (t as any).avg_cycle_length ?? undefined,
+          basicStrats: (t as any).basic_strats ?? undefined,
+          canPassUnderTrench: (t as any).can_pass_under_trench ?? undefined,
+          canGetStuckOnBump: (t as any).can_get_stuck_on_bump ?? undefined,
+          canPlayDefense: (t as any).can_play_defense ?? undefined,
+          generalAccuracy: (t as any).general_accuracy ?? undefined,
+          climbLevel: (t as any).climb_level ?? undefined,
+          mostCommonIssue: (t as any).most_common_issue ?? undefined,
+          speedAgilityRating: (t as any).speed_agility_rating ?? undefined,
+          drivingAbilityRating: (t as any).driving_ability_rating ?? undefined,
+          reliabilityRating: (t as any).reliability_rating ?? undefined,
+          defenseRating: (t as any).defense_rating ?? undefined,
+          commonFailureMode: (t as any).common_failure_mode ?? undefined,
+          failureModeNotes: (t as any).failure_mode_notes ?? undefined,
+          averagePitFixTime: (t as any).average_pit_fix_time ?? undefined,
+          sparePartsReadiness: (t as any).spare_parts_readiness ?? undefined,
+          autoConsistency: (t as any).auto_consistency ?? undefined,
+          autoPartnerRequirement: (t as any).auto_partner_requirement ?? undefined,
+          cyclePreference: (t as any).cycle_preference ?? undefined,
+          defensiveTolerance: (t as any).defensive_tolerance ?? undefined,
+          bestAutoSummary: (t as any).best_auto_summary ?? undefined,
+          avgTeleopCycleTime: (t as any).avg_teleop_cycle_time ?? undefined,
+          roleInPlayoffs: (t as any).role_in_playoffs ?? undefined,
+          upgradeWish: (t as any).upgrade_wish ?? undefined,
+          interviewQuote: (t as any).interview_quote ?? undefined,
+          sourceOfClaims: (t as any).source_of_claims ?? undefined,
+          confidenceLevel: (t as any).confidence_level ?? undefined,
+          needsRecheck: (t as any).needs_recheck ?? undefined,
+          lastPitUpdatedAt: (t as any).last_pit_updated_at ? Number((t as any).last_pit_updated_at) : undefined,
+          pitVersion: (t as any).pit_version ?? undefined,
+          pitHistory: (t as any).pit_history ?? undefined,
+          endgameCompleted: t.endgame_completed ?? undefined,
+          otherCommunication: t.other_communication ?? undefined,
+          soloScoreEstimate:
+            t.solo_score_estimate === null || t.solo_score_estimate === undefined
+              ? undefined
+              : Number(t.solo_score_estimate),
+        }));
 
         const remoteMap = new Map(mappedRemoteTeams.map((team) => [team.teamNumber, team]));
-        const mergedTeamsMap = new Map(remoteMap);
-        localTeams.forEach((team) => {
-          const remote = remoteMap.get(team.teamNumber);
-          mergedTeamsMap.set(team.teamNumber, { ...remote, ...team, teamNumber: team.teamNumber });
+        const localMap = new Map(localTeams.map((team) => [team.teamNumber, team]));
+        const remoteFreshness = new Map<number, number>();
+
+        remoteTeams.forEach((teamRow) => {
+          const pitTimestamp = Number((teamRow as any).last_pit_updated_at ?? 0);
+          const rowUpdatedAt = Date.parse(String((teamRow as any).updated_at ?? ''));
+          const freshness = Number.isFinite(pitTimestamp) && pitTimestamp > 0
+            ? pitTimestamp
+            : Number.isFinite(rowUpdatedAt)
+              ? rowUpdatedAt
+              : 0;
+          remoteFreshness.set(teamRow.team_number, freshness);
         });
-        const mergedTeams = Array.from(mergedTeamsMap.values()).sort((a, b) => a.teamNumber - b.teamNumber);
+
+        const allTeamNumbers = new Set<number>([...remoteMap.keys(), ...localMap.keys()]);
+        const mergedTeams = Array.from(allTeamNumbers)
+          .map((teamNumber) => {
+            const localTeam = localMap.get(teamNumber);
+            const remoteTeam = remoteMap.get(teamNumber);
+            const localFreshness = localTeam?.lastPitUpdatedAt ?? 0;
+            const remoteTeamFreshness = remoteFreshness.get(teamNumber) ?? (remoteTeam?.lastPitUpdatedAt ?? 0);
+            return mergeTeamRecords(localTeam, remoteTeam, localFreshness, remoteTeamFreshness);
+          })
+          .filter((team): team is TeamData => Boolean(team))
+          .sort((a, b) => a.teamNumber - b.teamNumber);
 
         localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(mergedTeams));
         storage.emitChange();
 
         const teamsToPush = mergedTeams.filter(
-          (team) => JSON.stringify(remoteMap.get(team.teamNumber) || null) !== JSON.stringify(team)
+          (team) => stableSerialize(remoteMap.get(team.teamNumber) ?? null) !== stableSerialize(team)
         );
         if (teamsToPush.length > 0) {
-          const payload = teamsToPush.map((t) => ({
+          const payload: Array<Record<string, unknown>> = teamsToPush.map((t) => ({
             team_number: t.teamNumber,
+            updated_at: new Date().toISOString(),
             team_name: t.teamName,
             city: t.city,
             state_prov: t.stateProv,
@@ -247,7 +380,7 @@ export const storage = {
             other_communication: t.otherCommunication,
             solo_score_estimate: t.soloScoreEstimate,
           }));
-          await supabase.from('teams').upsert(payload);
+          await upsertTeamsWithSchemaFallback(payload);
         }
       }
 
@@ -279,7 +412,7 @@ export const storage = {
         storage.emitChange();
 
         const scoutToPush = mergedData.filter(
-          (d) => JSON.stringify(remoteMap.get(d.id) || null) !== JSON.stringify(d)
+          (d) => stableSerialize(remoteMap.get(d.id) ?? null) !== stableSerialize(d)
         );
         if (scoutToPush.length > 0) {
           const payload = scoutToPush
@@ -332,7 +465,7 @@ export const storage = {
         storage.emitChange();
 
         const matchesToPush = mergedMatches.filter(
-          (m) => JSON.stringify(remoteMap.get(m.matchNumber) || null) !== JSON.stringify(m)
+          (m) => stableSerialize(remoteMap.get(m.matchNumber) ?? null) !== stableSerialize(m)
         );
         if (matchesToPush.length > 0) {
           const payload = matchesToPush
@@ -372,7 +505,7 @@ export const storage = {
     if (typeof window === 'undefined') return;
     const previous = this.getScoutData();
     const previousMap = new Map(previous.map((d) => [d.id, d]));
-    const changed = data.filter((d) => JSON.stringify(previousMap.get(d.id) || null) !== JSON.stringify(d));
+    const changed = data.filter((d) => stableSerialize(previousMap.get(d.id) ?? null) !== stableSerialize(d));
 
     localStorage.setItem(STORAGE_KEYS.SCOUT_DATA, JSON.stringify(data));
     storage.emitChange();
@@ -432,7 +565,9 @@ export const storage = {
     if (typeof window === 'undefined') return;
     const previous = this.getMatches();
     const previousMap = new Map(previous.map((m) => [m.matchNumber, m]));
-    const changed = matches.filter((m) => JSON.stringify(previousMap.get(m.matchNumber) || null) !== JSON.stringify(m));
+    const changed = matches.filter(
+      (m) => stableSerialize(previousMap.get(m.matchNumber) ?? null) !== stableSerialize(m)
+    );
 
     localStorage.setItem(STORAGE_KEYS.MATCHES, JSON.stringify(matches));
     storage.emitChange();
@@ -503,7 +638,7 @@ export const storage = {
     const previousMap = new Map(previous.map((team) => [team.teamNumber, team]));
     const changed = teams.filter((team) => {
       const prev = previousMap.get(team.teamNumber);
-      return JSON.stringify(prev || null) !== JSON.stringify(team);
+      return stableSerialize(prev ?? null) !== stableSerialize(team);
     });
 
     localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(teams));
@@ -513,8 +648,9 @@ export const storage = {
 
     try {
       if (changed.length > 0) {
-        const payload = changed.map(t => ({
+        const payload: Array<Record<string, unknown>> = changed.map(t => ({
           team_number: t.teamNumber,
+          updated_at: new Date().toISOString(),
           team_name: t.teamName,
           city: t.city,
           state_prov: t.stateProv,
@@ -565,7 +701,7 @@ export const storage = {
           other_communication: t.otherCommunication,
           solo_score_estimate: t.soloScoreEstimate
         }));
-        await supabase.from('teams').upsert(payload);
+        await upsertTeamsWithSchemaFallback(payload);
       }
     } catch (e) {
       console.error('Failed to push teams to Supabase:', e);
