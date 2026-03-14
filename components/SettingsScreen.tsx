@@ -639,7 +639,7 @@ export default function SettingsScreen() {
                     </button>
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-600 mb-1">Target alliance fuel for stress test</label>
+                    <label className="block text-xs text-gray-600 mb-1">Target alliance fuel (scaled to realistic output)</label>
                     <input
                       type="number"
                       value={targetAllianceFuel}

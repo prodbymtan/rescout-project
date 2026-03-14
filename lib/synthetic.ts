@@ -110,23 +110,24 @@ export function buildSyntheticScoutData(options: SyntheticSeedOptions): MatchSco
     teams.forEach((team, i) => {
       const power = blendedPower.get(team) ?? 0.5;
       const weight = baseWeights[i] / totalWeight;
-      const jitter = (seededUnit(`${eventKey}-${matchNumber}-${alliance}-${team}-j`) - 0.5) * 18;
-
-      const teleopMade = clamp(Math.round(allianceFuel * weight + jitter), 0, 220);
+      const jitter = (seededUnit(`${eventKey}-${matchNumber}-${alliance}-${team}-j`) - 0.5) * 8;
+      const basePerTeam = clamp(allianceFuel / 3, 8, 48);
+      const powerMult = 0.62 + power * 0.9; // 0.62x..1.52x
+      const teleopMade = clamp(Math.round(basePerTeam * powerMult + jitter), 4, 72);
       const autoMade = clamp(
-        Math.round(teleopMade * (0.15 + power * 0.08) + (seededUnit(`${matchNumber}-${team}-a`) - 0.5) * 4),
+        Math.round(teleopMade * (0.12 + power * 0.1) + (seededUnit(`${matchNumber}-${team}-a`) - 0.5) * 2),
         0,
-        90
+        24
       );
       const teleopMiss = Math.round(teleopMade * teleopMissRate);
       const autoMiss = Math.round(autoMade * (teleopMissRate * 0.8));
-      const cycleCount = clamp(Math.round(teleopMade / 8), 4, 20);
+      const cycleCount = clamp(Math.round(teleopMade / (3.8 - power * 1.2)), 3, 14);
       const avgCycleBalls = cycleCount > 0 ? teleopMade / cycleCount : 0;
 
       const cycles = Array.from({ length: cycleCount }).map((_, idx) => {
         const cycleJitter = (seededUnit(`${matchNumber}-${team}-c-${idx}`) - 0.5) * 2;
-        const start = 135 - idx * 7;
-        const end = Math.max(0, start - (6 + Math.floor(seededUnit(`${matchNumber}-${team}-t-${idx}`) * 4)));
+      const start = 135 - idx * 8;
+      const end = Math.max(0, start - (5 + Math.floor(seededUnit(`${matchNumber}-${team}-t-${idx}`) * 5)));
         return {
           id: `${matchNumber}-${team}-cycle-${idx + 1}`,
           startTime: start,
@@ -158,8 +159,8 @@ export function buildSyntheticScoutData(options: SyntheticSeedOptions): MatchSco
           playedDefense: power < 0.45 ? 'heavy' : power < 0.6 ? 'light' : 'none',
           notes: `Synthetic seed from OPR + DPR + EPA (${eventKey})`,
           tags: ['synthetic', 'rating-test'],
-          energizedRP: allianceFuel >= 100,
-          superchargedRP: allianceFuel >= 360,
+          energizedRP: allianceFuel >= 70,
+          superchargedRP: allianceFuel >= 180,
           traversalRP: power > 0.7,
           matchWin: didWin,
           matchTie: didTie,
@@ -178,19 +179,21 @@ export function buildSyntheticScoutData(options: SyntheticSeedOptions): MatchSco
     const bluePower = match.blueAlliance.reduce((sum, t) => sum + (blendedPower.get(t) ?? 0.5), 0);
     const totalPower = redPower + bluePower || 1;
 
-    const baseVariance = targetAllianceFuel * 0.09;
+    // Convert "target alliance fuel" into realistic per-alliance scoring volume.
+    const normalizedTarget = clamp(targetAllianceFuel * 0.28, 70, 170);
+    const baseVariance = normalizedTarget * 0.12;
     const redVariance = (seededUnit(`${eventKey}-${match.matchNumber}-red`) - 0.5) * baseVariance;
     const blueVariance = (seededUnit(`${eventKey}-${match.matchNumber}-blue`) - 0.5) * baseVariance;
 
     const redFuel = clamp(
-      Math.round(targetAllianceFuel * (0.75 + redPower / totalPower) + redVariance),
-      45,
-      520
+      Math.round(normalizedTarget * (0.82 + redPower / totalPower) + redVariance),
+      55,
+      220
     );
     const blueFuel = clamp(
-      Math.round(targetAllianceFuel * (0.75 + bluePower / totalPower) + blueVariance),
-      45,
-      520
+      Math.round(normalizedTarget * (0.82 + bluePower / totalPower) + blueVariance),
+      55,
+      220
     );
 
     const isTie = redFuel === blueFuel;
