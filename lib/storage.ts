@@ -112,6 +112,34 @@ function normalizeMatchLabel(value: string | number): string {
   return parsed == null ? raw : `Q${parsed}`;
 }
 
+function readStorageJSON<T>(key: string, fallback: T): T {
+  if (typeof window === 'undefined') return fallback;
+  const raw = localStorage.getItem(key);
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    console.warn(`Invalid JSON found in localStorage key '${key}'. Resetting that key.`);
+    localStorage.removeItem(key);
+    return fallback;
+  }
+}
+
+function parseAllianceValue(value: unknown): 'red' | 'blue' {
+  return String(value ?? '').toLowerCase() === 'blue' ? 'blue' : 'red';
+}
+
+function parsePositionValue(value: unknown): 1 | 2 | 3 {
+  const digits = String(value ?? '').replace(/\D/g, '');
+  const parsed = Number.parseInt(digits, 10);
+  return parsed === 1 || parsed === 2 || parsed === 3 ? parsed : 1;
+}
+
+function parseTimestamp(value: unknown): number {
+  const parsed = Date.parse(String(value ?? ''));
+  return Number.isFinite(parsed) ? parsed : Date.now();
+}
+
 function isMeaningfulValue(value: unknown): boolean {
   if (value === undefined || value === null) return false;
   if (typeof value === 'string') return value.trim().length > 0;
@@ -393,18 +421,23 @@ export const storage = {
       // 2. Sync Scout Data
       const { data: remoteScoutData } = await supabase.from('scout_data').select('*');
       if (remoteScoutData) {
-        const mappedRemoteScoutData: MatchScoutData[] = remoteScoutData.map(d => ({
-          id: d.id,
-          matchNumber: normalizeMatchLabel(d.match_number),
-          alliance: d.alliance as any,
-          teamNumber: d.team_number,
-          position: parseInt(d.position.replace(/\D/g, '')) as any,
-          auto: d.auto_data,
-          teleop: d.teleop_data,
-          endgame: d.endgame_data,
-          timestamp: new Date(d.created_at).getTime(),
-          scoutName: d.scout_name
-        }));
+        const mappedRemoteScoutData: MatchScoutData[] = remoteScoutData.flatMap((d) => {
+          if (!d?.id || typeof d.team_number !== 'number') return [];
+          return [
+            {
+              id: d.id,
+              matchNumber: normalizeMatchLabel(d.match_number),
+              alliance: parseAllianceValue(d.alliance),
+              teamNumber: d.team_number,
+              position: parsePositionValue(d.position),
+              auto: d.auto_data,
+              teleop: d.teleop_data,
+              endgame: d.endgame_data,
+              timestamp: parseTimestamp(d.created_at),
+              scoutName: d.scout_name,
+            },
+          ];
+        });
 
         const remoteMap = new Map(mappedRemoteScoutData.map((d) => [d.id, d]));
         const mergedDataMap = new Map(remoteMap);
@@ -503,9 +536,7 @@ export const storage = {
 
   getScoutData(): MatchScoutData[] {
     if (typeof window === 'undefined') return [];
-    const data = localStorage.getItem(STORAGE_KEYS.SCOUT_DATA);
-    if (!data) return [];
-    const parsed = JSON.parse(data) as MatchScoutData[];
+    const parsed = readStorageJSON<MatchScoutData[]>(STORAGE_KEYS.SCOUT_DATA, []);
     return parsed.map((entry) => ({
       ...entry,
       matchNumber: normalizeMatchLabel(entry.matchNumber),
@@ -574,9 +605,7 @@ export const storage = {
 
   getMatches(): Match[] {
     if (typeof window === 'undefined') return [];
-    const data = localStorage.getItem(STORAGE_KEYS.MATCHES);
-    if (!data) return [];
-    const parsed = JSON.parse(data) as Match[];
+    const parsed = readStorageJSON<Match[]>(STORAGE_KEYS.MATCHES, []);
     return parsed.map((match) => ({
       ...match,
       matchNumber: normalizeMatchLabel(match.matchNumber),
@@ -636,12 +665,11 @@ export const storage = {
         normalBallRange: { min: 30, max: 60 },
       };
     }
-    const data = localStorage.getItem(STORAGE_KEYS.CONFIG);
-    return data ? JSON.parse(data) : {
+    return readStorageJSON<GameConfig>(STORAGE_KEYS.CONFIG, {
       scoringZones: ['high', 'low'],
       phases: ['auto', 'teleop', 'endgame'],
       normalBallRange: { min: 30, max: 60 },
-    };
+    });
   },
 
   saveConfig(config: GameConfig): void {
@@ -654,8 +682,7 @@ export const storage = {
 
   getTeams(): TeamData[] {
     if (typeof window === 'undefined') return [];
-    const data = localStorage.getItem(STORAGE_KEYS.TEAMS);
-    return data ? JSON.parse(data) : [];
+    return readStorageJSON<TeamData[]>(STORAGE_KEYS.TEAMS, []);
   },
 
   async saveTeams(teams: TeamData[]): Promise<void> {
