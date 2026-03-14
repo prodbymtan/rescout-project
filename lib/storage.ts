@@ -99,6 +99,13 @@ export interface TeamData {
   pitHistory?: Array<{ timestamp: number; summary: string }>;
 }
 
+function parseMatchNumber(value: string): number | null {
+  const digits = value.replace(/\D/g, '');
+  const normalized = digits.length > 0 ? digits : value;
+  const parsed = Number.parseInt(normalized, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export const storage = {
   emitChange(): void {
     if (typeof window === 'undefined') return;
@@ -111,75 +118,143 @@ export const storage = {
     if (!supabase) return;
 
     try {
+      const localTeams = this.getTeams();
+      const localScoutData = this.getScoutData();
+      const localMatches = this.getMatches();
+
       // 1. Sync Teams
       const { data: remoteTeams } = await supabase.from('teams').select('*');
       if (remoteTeams) {
-        const localTeams = this.getTeams();
-        const localMap = new Map(localTeams.map((team) => [team.teamNumber, team]));
-        const mappedTeams: TeamData[] = remoteTeams.map(t => {
-          const existingLocal = localMap.get(t.team_number);
+        const mappedRemoteTeams: TeamData[] = remoteTeams.map(t => {
           return {
-            ...existingLocal,
-          teamNumber: t.team_number,
-          teamName: t.team_name,
-          city: t.city,
-          stateProv: t.state_prov,
-          country: t.country,
-          hasAutoAim: (t as any).has_auto_aim,
-          robotPhotoUrl: t.robot_photo_url,
-          mechanismPhotoUrl: (t as any).mechanism_photo_url,
-          photoCapturedAt: (t as any).photo_captured_at ? Number((t as any).photo_captured_at) : undefined,
-          photoTags: (t as any).photo_tags ?? undefined,
-          hasAutoProgram: (t as any).has_auto_program,
-          drivetrainType: (t as any).drivetrain_type,
-          shooterType: (t as any).shooter_type,
-          maxFuelCapacity: (t as any).max_fuel_capacity,
-          intakeLocation: (t as any).intake_location,
-          autoFlexibility: (t as any).auto_flexibility,
-          avgCycleLength: (t as any).avg_cycle_length,
-          basicStrats: (t as any).basic_strats,
-          canPassUnderTrench: (t as any).can_pass_under_trench,
-          canGetStuckOnBump: (t as any).can_get_stuck_on_bump,
-          canPlayDefense: (t as any).can_play_defense,
-          generalAccuracy: (t as any).general_accuracy,
-          climbLevel: (t as any).climb_level,
-          mostCommonIssue: (t as any).most_common_issue,
-          speedAgilityRating: (t as any).speed_agility_rating,
-          drivingAbilityRating: (t as any).driving_ability_rating,
-          reliabilityRating: (t as any).reliability_rating,
-          defenseRating: (t as any).defense_rating,
-          commonFailureMode: (t as any).common_failure_mode,
-          failureModeNotes: (t as any).failure_mode_notes,
-          averagePitFixTime: (t as any).average_pit_fix_time,
-          sparePartsReadiness: (t as any).spare_parts_readiness,
-          autoConsistency: (t as any).auto_consistency,
-          autoPartnerRequirement: (t as any).auto_partner_requirement,
-          cyclePreference: (t as any).cycle_preference,
-          defensiveTolerance: (t as any).defensive_tolerance,
-          bestAutoSummary: (t as any).best_auto_summary,
-          avgTeleopCycleTime: (t as any).avg_teleop_cycle_time,
-          roleInPlayoffs: (t as any).role_in_playoffs,
-          upgradeWish: (t as any).upgrade_wish,
-          interviewQuote: (t as any).interview_quote,
-          sourceOfClaims: (t as any).source_of_claims,
-          confidenceLevel: (t as any).confidence_level,
-          needsRecheck: (t as any).needs_recheck ?? undefined,
-          lastPitUpdatedAt: (t as any).last_pit_updated_at ? Number((t as any).last_pit_updated_at) : undefined,
-          pitVersion: (t as any).pit_version ?? undefined,
-          pitHistory: (t as any).pit_history ?? undefined,
-          endgameCompleted: t.endgame_completed,
-          otherCommunication: t.other_communication,
-          soloScoreEstimate: t.solo_score_estimate ? Number(t.solo_score_estimate) : undefined
+            teamNumber: t.team_number,
+            teamName: t.team_name,
+            city: t.city,
+            stateProv: t.state_prov,
+            country: t.country,
+            hasAutoAim: (t as any).has_auto_aim,
+            robotPhotoUrl: t.robot_photo_url,
+            mechanismPhotoUrl: (t as any).mechanism_photo_url,
+            photoCapturedAt: (t as any).photo_captured_at ? Number((t as any).photo_captured_at) : undefined,
+            photoTags: (t as any).photo_tags ?? undefined,
+            hasAutoProgram: (t as any).has_auto_program,
+            drivetrainType: (t as any).drivetrain_type,
+            shooterType: (t as any).shooter_type,
+            maxFuelCapacity: (t as any).max_fuel_capacity,
+            intakeLocation: (t as any).intake_location,
+            autoFlexibility: (t as any).auto_flexibility,
+            avgCycleLength: (t as any).avg_cycle_length,
+            basicStrats: (t as any).basic_strats,
+            canPassUnderTrench: (t as any).can_pass_under_trench,
+            canGetStuckOnBump: (t as any).can_get_stuck_on_bump,
+            canPlayDefense: (t as any).can_play_defense,
+            generalAccuracy: (t as any).general_accuracy,
+            climbLevel: (t as any).climb_level,
+            mostCommonIssue: (t as any).most_common_issue,
+            speedAgilityRating: (t as any).speed_agility_rating,
+            drivingAbilityRating: (t as any).driving_ability_rating,
+            reliabilityRating: (t as any).reliability_rating,
+            defenseRating: (t as any).defense_rating,
+            commonFailureMode: (t as any).common_failure_mode,
+            failureModeNotes: (t as any).failure_mode_notes,
+            averagePitFixTime: (t as any).average_pit_fix_time,
+            sparePartsReadiness: (t as any).spare_parts_readiness,
+            autoConsistency: (t as any).auto_consistency,
+            autoPartnerRequirement: (t as any).auto_partner_requirement,
+            cyclePreference: (t as any).cycle_preference,
+            defensiveTolerance: (t as any).defensive_tolerance,
+            bestAutoSummary: (t as any).best_auto_summary,
+            avgTeleopCycleTime: (t as any).avg_teleop_cycle_time,
+            roleInPlayoffs: (t as any).role_in_playoffs,
+            upgradeWish: (t as any).upgrade_wish,
+            interviewQuote: (t as any).interview_quote,
+            sourceOfClaims: (t as any).source_of_claims,
+            confidenceLevel: (t as any).confidence_level,
+            needsRecheck: (t as any).needs_recheck ?? undefined,
+            lastPitUpdatedAt: (t as any).last_pit_updated_at ? Number((t as any).last_pit_updated_at) : undefined,
+            pitVersion: (t as any).pit_version ?? undefined,
+            pitHistory: (t as any).pit_history ?? undefined,
+            endgameCompleted: t.endgame_completed,
+            otherCommunication: t.other_communication,
+            soloScoreEstimate: t.solo_score_estimate ? Number(t.solo_score_estimate) : undefined,
           };
         });
-        localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(mappedTeams));
+
+        const remoteMap = new Map(mappedRemoteTeams.map((team) => [team.teamNumber, team]));
+        const mergedTeamsMap = new Map(remoteMap);
+        localTeams.forEach((team) => {
+          const remote = remoteMap.get(team.teamNumber);
+          mergedTeamsMap.set(team.teamNumber, { ...remote, ...team, teamNumber: team.teamNumber });
+        });
+        const mergedTeams = Array.from(mergedTeamsMap.values()).sort((a, b) => a.teamNumber - b.teamNumber);
+
+        localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(mergedTeams));
         storage.emitChange();
+
+        const teamsToPush = mergedTeams.filter(
+          (team) => JSON.stringify(remoteMap.get(team.teamNumber) || null) !== JSON.stringify(team)
+        );
+        if (teamsToPush.length > 0) {
+          const payload = teamsToPush.map((t) => ({
+            team_number: t.teamNumber,
+            team_name: t.teamName,
+            city: t.city,
+            state_prov: t.stateProv,
+            country: t.country,
+            has_auto_aim: t.hasAutoAim,
+            robot_photo_url: t.robotPhotoUrl,
+            mechanism_photo_url: t.mechanismPhotoUrl,
+            photo_captured_at: t.photoCapturedAt ?? null,
+            photo_tags: t.photoTags ?? null,
+            has_auto_program: t.hasAutoProgram,
+            drivetrain_type: t.drivetrainType,
+            shooter_type: t.shooterType,
+            max_fuel_capacity: t.maxFuelCapacity,
+            intake_location: t.intakeLocation,
+            auto_flexibility: t.autoFlexibility,
+            avg_cycle_length: t.avgCycleLength,
+            basic_strats: t.basicStrats,
+            can_pass_under_trench: t.canPassUnderTrench,
+            can_get_stuck_on_bump: t.canGetStuckOnBump,
+            can_play_defense: t.canPlayDefense,
+            general_accuracy: t.generalAccuracy,
+            climb_level: t.climbLevel,
+            most_common_issue: t.mostCommonIssue,
+            speed_agility_rating: t.speedAgilityRating,
+            driving_ability_rating: t.drivingAbilityRating,
+            reliability_rating: t.reliabilityRating,
+            defense_rating: t.defenseRating,
+            common_failure_mode: t.commonFailureMode,
+            failure_mode_notes: t.failureModeNotes,
+            average_pit_fix_time: t.averagePitFixTime,
+            spare_parts_readiness: t.sparePartsReadiness,
+            auto_consistency: t.autoConsistency,
+            auto_partner_requirement: t.autoPartnerRequirement,
+            cycle_preference: t.cyclePreference,
+            defensive_tolerance: t.defensiveTolerance,
+            best_auto_summary: t.bestAutoSummary,
+            avg_teleop_cycle_time: t.avgTeleopCycleTime,
+            role_in_playoffs: t.roleInPlayoffs,
+            upgrade_wish: t.upgradeWish,
+            interview_quote: t.interviewQuote,
+            source_of_claims: t.sourceOfClaims,
+            confidence_level: t.confidenceLevel,
+            needs_recheck: t.needsRecheck ?? null,
+            last_pit_updated_at: t.lastPitUpdatedAt ?? null,
+            pit_version: t.pitVersion ?? null,
+            pit_history: t.pitHistory ?? null,
+            endgame_completed: t.endgameCompleted,
+            other_communication: t.otherCommunication,
+            solo_score_estimate: t.soloScoreEstimate,
+          }));
+          await supabase.from('teams').upsert(payload);
+        }
       }
 
       // 2. Sync Scout Data
       const { data: remoteScoutData } = await supabase.from('scout_data').select('*');
       if (remoteScoutData) {
-        const mappedData: MatchScoutData[] = remoteScoutData.map(d => ({
+        const mappedRemoteScoutData: MatchScoutData[] = remoteScoutData.map(d => ({
           id: d.id,
           matchNumber: d.match_number.toString(),
           alliance: d.alliance as any,
@@ -191,22 +266,94 @@ export const storage = {
           timestamp: new Date(d.created_at).getTime(),
           scoutName: d.scout_name
         }));
-        localStorage.setItem(STORAGE_KEYS.SCOUT_DATA, JSON.stringify(mappedData));
+
+        const remoteMap = new Map(mappedRemoteScoutData.map((d) => [d.id, d]));
+        const mergedDataMap = new Map(remoteMap);
+        localScoutData.forEach((d) => {
+          const remote = remoteMap.get(d.id);
+          mergedDataMap.set(d.id, { ...remote, ...d, id: d.id });
+        });
+        const mergedData = Array.from(mergedDataMap.values()).sort((a, b) => a.timestamp - b.timestamp);
+
+        localStorage.setItem(STORAGE_KEYS.SCOUT_DATA, JSON.stringify(mergedData));
         storage.emitChange();
+
+        const scoutToPush = mergedData.filter(
+          (d) => JSON.stringify(remoteMap.get(d.id) || null) !== JSON.stringify(d)
+        );
+        if (scoutToPush.length > 0) {
+          const payload = scoutToPush
+            .map((d) => {
+              const parsedMatchNumber = parseMatchNumber(d.matchNumber);
+              if (parsedMatchNumber == null) return null;
+              return {
+                id: d.id,
+                match_number: parsedMatchNumber,
+                alliance: d.alliance,
+                team_number: d.teamNumber,
+                position: `${d.alliance}${d.position}`,
+                scout_name: d.scoutName,
+                auto_data: d.auto,
+                teleop_data: d.teleop,
+                endgame_data: d.endgame,
+              };
+            })
+            .filter((row): row is NonNullable<typeof row> => row !== null);
+          if (payload.length > 0) {
+            await supabase.from('scout_data').upsert(payload);
+          }
+        }
       }
 
       // 3. Sync Matches
       const { data: remoteMatches } = await supabase.from('matches').select('*');
       if (remoteMatches) {
-        const mappedMatches: Match[] = remoteMatches.map(m => ({
+        const mappedRemoteMatches: Match[] = remoteMatches.map(m => ({
           matchNumber: m.match_number.toString(),
           redAlliance: [m.red_1, m.red_2, m.red_3],
           blueAlliance: [m.blue_1, m.blue_2, m.blue_3],
           timestamp: new Date(m.created_at).getTime(),
           status: 'upcoming'
         }));
-        localStorage.setItem(STORAGE_KEYS.MATCHES, JSON.stringify(mappedMatches));
+
+        const remoteMap = new Map(mappedRemoteMatches.map((m) => [m.matchNumber, m]));
+        const mergedMatchesMap = new Map(remoteMap);
+        localMatches.forEach((m) => {
+          const remote = remoteMap.get(m.matchNumber);
+          mergedMatchesMap.set(m.matchNumber, { ...remote, ...m, matchNumber: m.matchNumber });
+        });
+        const mergedMatches = Array.from(mergedMatchesMap.values()).sort((a, b) => {
+          const aNum = parseMatchNumber(a.matchNumber) ?? Number.MAX_SAFE_INTEGER;
+          const bNum = parseMatchNumber(b.matchNumber) ?? Number.MAX_SAFE_INTEGER;
+          return aNum - bNum;
+        });
+
+        localStorage.setItem(STORAGE_KEYS.MATCHES, JSON.stringify(mergedMatches));
         storage.emitChange();
+
+        const matchesToPush = mergedMatches.filter(
+          (m) => JSON.stringify(remoteMap.get(m.matchNumber) || null) !== JSON.stringify(m)
+        );
+        if (matchesToPush.length > 0) {
+          const payload = matchesToPush
+            .map((m) => {
+              const parsedMatchNumber = parseMatchNumber(m.matchNumber);
+              if (parsedMatchNumber == null) return null;
+              return {
+                match_number: parsedMatchNumber,
+                red_1: m.redAlliance[0],
+                red_2: m.redAlliance[1],
+                red_3: m.redAlliance[2],
+                blue_1: m.blueAlliance[0],
+                blue_2: m.blueAlliance[1],
+                blue_3: m.blueAlliance[2],
+              };
+            })
+            .filter((row): row is NonNullable<typeof row> => row !== null);
+          if (payload.length > 0) {
+            await supabase.from('matches').upsert(payload);
+          }
+        }
       }
     } catch (error) {
       console.error('Failed to sync with Supabase:', error);
@@ -235,18 +382,26 @@ export const storage = {
 
     try {
       if (changed.length > 0) {
-        const payload = changed.map(d => ({
-          id: d.id,
-          match_number: parseInt(d.matchNumber),
-          alliance: d.alliance,
-          team_number: d.teamNumber,
-          position: `${d.alliance}${d.position}`,
-          scout_name: d.scoutName,
-          auto_data: d.auto,
-          teleop_data: d.teleop,
-          endgame_data: d.endgame
-        }));
-        await supabase.from('scout_data').upsert(payload);
+        const payload = changed
+          .map((d) => {
+            const parsedMatchNumber = parseMatchNumber(d.matchNumber);
+            if (parsedMatchNumber == null) return null;
+            return {
+              id: d.id,
+              match_number: parsedMatchNumber,
+              alliance: d.alliance,
+              team_number: d.teamNumber,
+              position: `${d.alliance}${d.position}`,
+              scout_name: d.scoutName,
+              auto_data: d.auto,
+              teleop_data: d.teleop,
+              endgame_data: d.endgame,
+            };
+          })
+          .filter((row): row is NonNullable<typeof row> => row !== null);
+        if (payload.length > 0) {
+          await supabase.from('scout_data').upsert(payload);
+        }
       }
     } catch (e) {
       console.error('Failed to push scout data to Supabase:', e);
@@ -286,16 +441,24 @@ export const storage = {
 
     try {
       if (changed.length > 0) {
-        const payload = changed.map(m => ({
-          match_number: parseInt(m.matchNumber),
-          red_1: m.redAlliance[0],
-          red_2: m.redAlliance[1],
-          red_3: m.redAlliance[2],
-          blue_1: m.blueAlliance[0],
-          blue_2: m.blueAlliance[1],
-          blue_3: m.blueAlliance[2]
-        }));
-        await supabase.from('matches').upsert(payload);
+        const payload = changed
+          .map((m) => {
+            const parsedMatchNumber = parseMatchNumber(m.matchNumber);
+            if (parsedMatchNumber == null) return null;
+            return {
+              match_number: parsedMatchNumber,
+              red_1: m.redAlliance[0],
+              red_2: m.redAlliance[1],
+              red_3: m.redAlliance[2],
+              blue_1: m.blueAlliance[0],
+              blue_2: m.blueAlliance[1],
+              blue_3: m.blueAlliance[2],
+            };
+          })
+          .filter((row): row is NonNullable<typeof row> => row !== null);
+        if (payload.length > 0) {
+          await supabase.from('matches').upsert(payload);
+        }
       }
     } catch (e) {
       console.error('Failed to push matches to Supabase:', e);
