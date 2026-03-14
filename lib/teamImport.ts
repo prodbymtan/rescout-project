@@ -1,26 +1,76 @@
 import { storage, TeamData } from './storage';
 import { fetchEventTeams, parseTeamNumber, TBATeam } from './tba';
 
+function parseCsvLine(line: string): string[] {
+  const out: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (ch === ',' && !inQuotes) {
+      out.push(current.trim());
+      current = '';
+      continue;
+    }
+
+    current += ch;
+  }
+
+  out.push(current.trim());
+  return out;
+}
+
+function normalizeHeader(header: string): string {
+  return header.trim().toLowerCase().replace(/\s+/g, '_');
+}
+
 // Parse CSV content and import teams
 export function importTeamsFromCSV(csvContent: string): TeamData[] {
-  const lines = csvContent.trim().split('\n');
-  if (lines.length < 2) return [];
+  const lines = csvContent
+    .trim()
+    .split(/\r?\n/)
+    .filter((line) => line.trim().length > 0);
+  if (lines.length === 0) return [];
 
-  const headers = lines[0].split(',').map(h => h.trim());
+  const headerCandidate = parseCsvLine(lines[0]).map(normalizeHeader);
+  const hasHeader = headerCandidate.some((h) =>
+    ['team_number', 'team', 'teamnum', 'team_number_'].includes(h)
+  );
+  const headers = hasHeader ? headerCandidate : ['team_number', 'team_name', 'city', 'state_prov', 'country'];
+  const startIndex = hasHeader ? 1 : 0;
   const teams: TeamData[] = [];
 
-  for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(',').map(v => v.trim());
-    if (values.length < headers.length) continue;
+  for (let i = startIndex; i < lines.length; i++) {
+    const values = parseCsvLine(lines[i]);
+    if (values.length === 0) continue;
+
+    const teamNumberIndex = headers.findIndex((h) =>
+      ['team_number', 'team', 'teamnum', 'team_number_'].includes(h)
+    );
+    const teamNumberRaw = teamNumberIndex >= 0 ? values[teamNumberIndex] : values[0];
+    const parsedTeamNumber = parseTeamNumber(teamNumberRaw);
+    if (parsedTeamNumber == null || Number.isNaN(parsedTeamNumber)) continue;
 
     const teamData: TeamData = {
-      teamNumber: parseInt(values[0], 10),
+      teamNumber: parsedTeamNumber,
     };
 
     // Map CSV columns to team data
-    const teamNameIndex = headers.indexOf('team_name');
+    const teamNameIndex = headers.findIndex((h) => ['team_name', 'nickname', 'name'].includes(h));
     const cityIndex = headers.indexOf('city');
-    const stateIndex = headers.indexOf('state_prov');
+    const stateIndex = headers.findIndex((h) => ['state_prov', 'state', 'province'].includes(h));
     const countryIndex = headers.indexOf('country');
 
     if (teamNameIndex >= 0 && values[teamNameIndex]) {
@@ -36,12 +86,15 @@ export function importTeamsFromCSV(csvContent: string): TeamData[] {
       teamData.country = values[countryIndex];
     }
 
-    if (!isNaN(teamData.teamNumber)) {
-      teams.push(teamData);
-    }
+    teams.push(teamData);
   }
 
-  return teams;
+  const deduped = new Map<number, TeamData>();
+  teams.forEach((team) => {
+    const existing = deduped.get(team.teamNumber);
+    deduped.set(team.teamNumber, { ...existing, ...team, teamNumber: team.teamNumber });
+  });
+  return Array.from(deduped.values());
 }
 
 // Import teams from TBA API
@@ -79,6 +132,6 @@ export async function mergeAndSaveTeams(newTeams: TeamData[]): Promise<TeamData[
 
   const mergedTeams = Array.from(teamMap.values()).sort((a, b) => a.teamNumber - b.teamNumber);
   await storage.saveTeams(mergedTeams);
+  await storage.syncAll();
   return mergedTeams;
 }
-
