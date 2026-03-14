@@ -145,16 +145,36 @@ function parsePositiveInteger(value: unknown): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 }
 
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function deterministicUuid(seed: string): string {
+  const salts = ['a', 'b', 'c', 'd'];
+  const parts = salts.map((salt) => {
+    let hash = 2166136261;
+    const input = `${salt}:${seed}`;
+    for (let i = 0; i < input.length; i++) {
+      hash ^= input.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(16).padStart(8, '0');
+  });
+  const raw = parts.join('');
+  return `${raw.slice(0, 8)}-${raw.slice(8, 12)}-4${raw.slice(13, 16)}-a${raw.slice(17, 20)}-${raw.slice(20, 32)}`;
+}
+
 function buildScoutEntryId(raw: Partial<MatchScoutData>, index: number): string {
   const existingId = String(raw.id ?? '').trim();
-  if (existingId.length > 0) return existingId;
+  if (existingId.length > 0 && isUuid(existingId)) return existingId;
 
   const match = normalizeMatchLabel(String(raw.matchNumber ?? ''));
   const alliance = parseAllianceValue(raw.alliance);
   const team = parsePositiveInteger(raw.teamNumber);
   const position = parsePositionValue(raw.position);
   const timestamp = Number.isFinite(Number(raw.timestamp)) ? Number(raw.timestamp) : Date.now();
-  return `legacy-${match}-${alliance}-${team}-${position}-${timestamp}-${index}`;
+  const seed = `${existingId}|${match}|${alliance}|${team}|${position}|${timestamp}|${index}`;
+  return deterministicUuid(seed);
 }
 
 function normalizeScoutEntry(raw: Partial<MatchScoutData>, index: number): MatchScoutData {
@@ -438,10 +458,12 @@ export const storage = {
       await upsertTeamsWithSchemaFallback(teamsPayload);
     }
     if (matchesPayload.length > 0) {
-      await supabase.from('matches').upsert(matchesPayload);
+      const { error } = await supabase.from('matches').upsert(matchesPayload);
+      if (error) throw new Error(`Matches push failed: ${error.message}`);
     }
     if (scoutPayload.length > 0) {
-      await supabase.from('scout_data').upsert(scoutPayload);
+      const { error } = await supabase.from('scout_data').upsert(scoutPayload);
+      if (error) throw new Error(`Scout data push failed: ${error.message}`);
     }
 
     await this.syncAll();

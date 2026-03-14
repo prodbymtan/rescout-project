@@ -12,6 +12,10 @@ import UndoBar from './scout/UndoBar';
 type Phase = 'auto' | 'teleop' | 'endgame';
 
 export default function ScoutScreen() {
+  const makeScoutId = () =>
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `fallback-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const [matchNumber, setMatchNumber] = useState('Q42');
   const [alliance, setAlliance] = useState<Alliance>('red');
   const [teamNumber, setTeamNumber] = useState(0);
@@ -154,7 +158,7 @@ export default function ScoutScreen() {
     }
 
     const scoutData: MatchScoutData = {
-      id: editingEntryId ?? `${matchNumber}-${teamNumber}-${Date.now()}`,
+      id: editingEntryId ?? makeScoutId(),
       matchNumber,
       alliance,
       teamNumber,
