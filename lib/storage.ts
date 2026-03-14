@@ -224,8 +224,11 @@ function stripUnsupportedTeamsColumns(row: Record<string, unknown>): Record<stri
 
 function extractMissingTeamsColumn(errorMessage: string | undefined): string | null {
   if (!errorMessage) return null;
-  const match = errorMessage.match(/column\s+teams\.([a-z0-9_]+)\s+does not exist/i);
-  return match?.[1] ?? null;
+  const directMatch = errorMessage.match(/column\s+teams\.([a-z0-9_]+)\s+does not exist/i);
+  if (directMatch?.[1]) return directMatch[1];
+
+  const schemaCacheMatch = errorMessage.match(/Could not find the '([a-z0-9_]+)' column of 'teams'/i);
+  return schemaCacheMatch?.[1] ?? null;
 }
 
 async function upsertTeamsWithSchemaFallback(rows: Array<Record<string, unknown>>): Promise<void> {

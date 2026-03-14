@@ -345,8 +345,9 @@ function shouldAutoFlagRecheck(teamNumber: number, data: ReturnType<typeof stora
 
   const recent = teamMatches.slice(-3);
   const hasRecentDnp = recent.some((match) => {
-    const notes = match.endgame.notes.toLowerCase();
-    return notes.includes('dnp') || match.endgame.tags.some((tag) => tag.toLowerCase().includes('dnp'));
+    const notes = String(match.endgame?.notes ?? '').toLowerCase();
+    const tags = Array.isArray(match.endgame?.tags) ? match.endgame.tags : [];
+    return notes.includes('dnp') || tags.some((tag) => String(tag ?? '').toLowerCase().includes('dnp'));
   });
   if (hasRecentDnp) return true;
 
