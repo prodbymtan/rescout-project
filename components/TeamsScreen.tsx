@@ -57,23 +57,45 @@ const YES_NO_UNKNOWN_OPTIONS: Option<'yes' | 'no' | 'not_sure'>[] = [
   { value: 'not_sure', label: 'Not sure' },
 ];
 
-const FEED_FROM_OPTIONS: Option<'ground' | 'top' | 'both' | 'not_sure'>[] = [
+const SHOOTER_TYPE_OPTIONS: Option<NonNullable<TeamData['shooterType']>>[] = [
+  { value: 'turret', label: 'Turret' },
+  { value: 'multi_turret', label: 'Multi-turret' },
+  { value: 'other', label: 'Other' },
+  { value: 'not_sure', label: 'Unknown' },
+];
+
+const INTAKE_LOCATION_OPTIONS: Option<NonNullable<TeamData['intakeLocation']>>[] = [
   { value: 'ground', label: 'Ground' },
-  { value: 'top', label: 'Top' },
+  { value: 'outpost', label: 'Outpost' },
   { value: 'both', label: 'Both' },
-  { value: 'not_sure', label: 'Not sure' },
+  { value: 'neither', label: 'Neither' },
+  { value: 'not_sure', label: 'Unknown' },
+];
+
+const AUTO_FLEX_OPTIONS: Option<NonNullable<TeamData['autoFlexibility']>>[] = [
+  { value: 'high', label: 'High' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'low', label: 'Low' },
+  { value: 'not_sure', label: 'Unknown' },
+];
+
+const GENERAL_ACCURACY_OPTIONS: Option<NonNullable<TeamData['generalAccuracy']>>[] = [
+  { value: 'high', label: 'High' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'low', label: 'Low' },
+  { value: 'not_sure', label: 'Unknown' },
+];
+
+const CLIMB_LEVEL_OPTIONS: Option<NonNullable<TeamData['climbLevel']>>[] = [
+  { value: 'low', label: 'Low' },
+  { value: 'middle', label: 'Middle' },
+  { value: 'high', label: 'High' },
+  { value: 'not_sure', label: 'Unknown' },
 ];
 
 const AUTOAIM_OPTIONS: Option<'yes' | 'no' | 'not_sure'>[] = [
   { value: 'yes', label: 'Yes' },
   { value: 'no', label: 'No' },
-  { value: 'not_sure', label: 'Not sure' },
-];
-
-const CYCLE_LENGTH_OPTIONS: Option<'fast' | 'average' | 'slow' | 'not_sure'>[] = [
-  { value: 'fast', label: 'Fast (~10–15s)' },
-  { value: 'average', label: 'Average (~15–25s)' },
-  { value: 'slow', label: 'Slow (25s+)' },
   { value: 'not_sure', label: 'Not sure' },
 ];
 
@@ -155,10 +177,20 @@ const CONFIDENCE_OPTIONS: Option<NonNullable<TeamData['confidenceLevel']>>[] = [
 ];
 
 const PIT_FIELDS: Array<keyof TeamData> = [
-  'feedFrom',
+  'drivetrainType',
+  'shooterType',
+  'maxFuelCapacity',
+  'intakeLocation',
+  'autoFlexibility',
+  'avgCycleLength',
+  'basicStrats',
+  'canPassUnderTrench',
+  'canGetStuckOnBump',
+  'canPlayDefense',
+  'generalAccuracy',
+  'climbLevel',
+  'mostCommonIssue',
   'hasAutoAim',
-  'canClimb',
-  'cycleLength',
   'robotPhotoUrl',
   'mechanismPhotoUrl',
   'photoCapturedAt',
@@ -285,15 +317,19 @@ function buildPitSummary(team: TeamData | null): string {
   if (!team) return '';
   const chunks: string[] = [];
 
-  const feed = getLabel(FEED_FROM_OPTIONS, team.feedFrom);
+  const shooter = getLabel(SHOOTER_TYPE_OPTIONS, team.shooterType);
+  const intake = getLabel(INTAKE_LOCATION_OPTIONS, team.intakeLocation);
+  const autoFlex = getLabel(AUTO_FLEX_OPTIONS, team.autoFlexibility);
   const autoaim = getLabel(AUTOAIM_OPTIONS, team.hasAutoAim);
-  const climb = team.canClimb ? getLabel(AUTOAIM_OPTIONS, team.canClimb) : null;
-  const cycle = getLabel(CYCLE_LENGTH_OPTIONS, team.cycleLength);
+  const accuracy = getLabel(GENERAL_ACCURACY_OPTIONS, team.generalAccuracy);
+  const climb = getLabel(CLIMB_LEVEL_OPTIONS, team.climbLevel);
 
-  if (feed) chunks.push(`feed: ${feed}`);
+  if (shooter) chunks.push(`shooter: ${shooter}`);
+  if (intake) chunks.push(`intake: ${intake}`);
   if (autoaim) chunks.push(`autoaim: ${autoaim}`);
+  if (autoFlex) chunks.push(`auto flex: ${autoFlex}`);
+  if (accuracy) chunks.push(`accuracy: ${accuracy}`);
   if (climb) chunks.push(`climb: ${climb}`);
-  if (cycle) chunks.push(`cycle: ${cycle}`);
 
   if (chunks.length === 0) {
     const speed = getLabel(SPEED_OPTIONS, team.speedAgilityRating);
@@ -365,7 +401,7 @@ function computeFitMetrics(team: TeamData | null): {
     100
   );
 
-  const climbScore = team.canClimb === 'yes' ? 35 : team.canClimb === 'no' ? 5 : 15;
+  const climbScore = team.climbLevel === 'high' ? 35 : team.climbLevel === 'middle' ? 25 : team.climbLevel === 'low' ? 12 : 18;
   const endgameValue = clamp(
     climbScore +
       (team.endgameCompleted?.toLowerCase().includes('high') ? 25 : 0) +
@@ -545,17 +581,89 @@ export default function TeamsScreen() {
         </div>
 
         <div className="bg-primary/5 rounded-lg p-4 border-2 border-primary/30 space-y-4">
-          <h2 className="text-lg font-bold text-gray-800">Key Pit Questions</h2>
-          <p className="text-sm text-gray-600">Feed, aim, climb, cycle — the essentials.</p>
+          <h2 className="text-lg font-bold text-gray-800">Scouting Prompts</h2>
+          <p className="text-sm text-gray-600">Core robot capabilities and match fit.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Feed from</label>
-              <SingleSelectChips
-                options={FEED_FROM_OPTIONS}
-                value={selectedTeamData?.feedFrom}
-                onChange={(value) => updateSelectedTeamField('feedFrom', value)}
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Drivetrain type</label>
+              <input
+                type="text"
+                defaultValue={selectedTeamData?.drivetrainType}
+                onBlur={(e) => updateSelectedTeamField('drivetrainType', e.target.value)}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm"
+                placeholder="e.g. West Coast, swerve"
               />
-              <span className="text-xs text-gray-500 mt-1 block">Ground = floor · Top = source/station</span>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Shooter type</label>
+              <SingleSelectChips
+                options={SHOOTER_TYPE_OPTIONS}
+                value={selectedTeamData?.shooterType}
+                onChange={(value) => updateSelectedTeamField('shooterType', value)}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Max fuel capacity</label>
+              <input
+                type="text"
+                defaultValue={selectedTeamData?.maxFuelCapacity}
+                onBlur={(e) => updateSelectedTeamField('maxFuelCapacity', e.target.value)}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm"
+                placeholder="e.g. 6"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Intake location</label>
+              <SingleSelectChips
+                options={INTAKE_LOCATION_OPTIONS}
+                value={selectedTeamData?.intakeLocation}
+                onChange={(value) => updateSelectedTeamField('intakeLocation', value)}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Auto flexibility</label>
+              <SingleSelectChips
+                options={AUTO_FLEX_OPTIONS}
+                value={selectedTeamData?.autoFlexibility}
+                onChange={(value) => updateSelectedTeamField('autoFlexibility', value)}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Avg cycle length</label>
+              <input
+                type="text"
+                defaultValue={selectedTeamData?.avgCycleLength}
+                onBlur={(e) => updateSelectedTeamField('avgCycleLength', e.target.value)}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm"
+                placeholder="e.g. 18s"
+              />
+              <span className="text-xs text-gray-500 mt-1 block">When uninterrupted</span>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Basic strats</label>
+              <textarea
+                defaultValue={selectedTeamData?.basicStrats}
+                onBlur={(e) => updateSelectedTeamField('basicStrats', e.target.value)}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm resize-none"
+                rows={3}
+                placeholder="How they want to play the match"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Can pass under trench?</label>
+              <SingleSelectChips
+                options={YES_NO_UNKNOWN_OPTIONS}
+                value={selectedTeamData?.canPassUnderTrench}
+                onChange={(value) => updateSelectedTeamField('canPassUnderTrench', value)}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Can get stuck on bump?</label>
+              <SingleSelectChips
+                options={YES_NO_UNKNOWN_OPTIONS}
+                value={selectedTeamData?.canGetStuckOnBump}
+                onChange={(value) => updateSelectedTeamField('canGetStuckOnBump', value)}
+              />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1.5">Has autoaim?</label>
@@ -566,21 +674,28 @@ export default function TeamsScreen() {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Can climb?</label>
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Can play defense?</label>
               <SingleSelectChips
-                options={AUTOAIM_OPTIONS}
-                value={selectedTeamData?.canClimb}
-                onChange={(value) => updateSelectedTeamField('canClimb', value)}
+                options={YES_NO_UNKNOWN_OPTIONS}
+                value={selectedTeamData?.canPlayDefense}
+                onChange={(value) => updateSelectedTeamField('canPlayDefense', value)}
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Cycle length</label>
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">General accuracy</label>
               <SingleSelectChips
-                options={CYCLE_LENGTH_OPTIONS}
-                value={selectedTeamData?.cycleLength}
-                onChange={(value) => updateSelectedTeamField('cycleLength', value)}
+                options={GENERAL_ACCURACY_OPTIONS}
+                value={selectedTeamData?.generalAccuracy}
+                onChange={(value) => updateSelectedTeamField('generalAccuracy', value)}
               />
-              <span className="text-xs text-gray-500 mt-1 block">When uninterrupted</span>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Can climb?</label>
+              <SingleSelectChips
+                options={CLIMB_LEVEL_OPTIONS}
+                value={selectedTeamData?.climbLevel}
+                onChange={(value) => updateSelectedTeamField('climbLevel', value)}
+              />
             </div>
           </div>
         </div>
@@ -875,8 +990,8 @@ export default function TeamsScreen() {
               <label className="block text-xs font-semibold text-gray-600 mb-1">#1 thing that breaks</label>
               <input
                 type="text"
-                defaultValue={selectedTeamData?.autoTasks}
-                onBlur={(e) => updateSelectedTeamField('autoTasks', e.target.value)}
+                defaultValue={selectedTeamData?.mostCommonIssue}
+                onBlur={(e) => updateSelectedTeamField('mostCommonIssue', e.target.value)}
                 className="w-full px-3 py-2 border border-border rounded-lg text-sm"
                 placeholder="Most common issue"
               />
@@ -1024,12 +1139,15 @@ export default function TeamsScreen() {
             {filteredImported.map((team) => {
               const stats = teams.find((t) => t.teamNumber === team.teamNumber);
               const teamFit = computeFitMetrics(team);
+              const scouted = Boolean(team.lastPitUpdatedAt || team.pitVersion);
               return (
                 <button
                   key={team.teamNumber}
                   type="button"
                   onClick={() => setSelectedTeam(team.teamNumber)}
-                  className="w-full text-left bg-card rounded-none p-4 border-2 border-primary/20 shadow-sm hover:bg-gray-50 transition-colors"
+                  className={`w-full text-left bg-card rounded-none p-4 border-2 shadow-sm hover:bg-gray-50 transition-colors ${
+                    scouted ? 'border-orange-400 bg-orange-50/40' : 'border-primary/20'
+                  }`}
                 >
                   <div className="flex justify-between items-start mb-2">
                     <div>
@@ -1047,14 +1165,20 @@ export default function TeamsScreen() {
                       <div className="text-right">
                         <div className="text-lg font-bold text-primary">{stats.rebuiltRating.toFixed(1)}</div>
                         <div className="text-xs text-gray-500">Rating</div>
+                        {scouted && <div className="text-xs font-semibold text-orange-700 mt-1">Scouted</div>}
                       </div>
                     )}
                   </div>
-                  {(team.feedFrom || team.hasAutoAim || team.canClimb || team.cycleLength) && (
+                  {(team.shooterType || team.intakeLocation || team.hasAutoAim || team.climbLevel) && (
                     <div className="flex flex-wrap gap-2 text-xs mt-3 pt-3 border-t border-gray-200">
-                      {team.feedFrom && (
+                      {team.shooterType && (
                         <span className="px-2 py-0.5 bg-gray-100 rounded font-medium">
-                          Feed: {getLabel(FEED_FROM_OPTIONS, team.feedFrom)}
+                          Shooter: {getLabel(SHOOTER_TYPE_OPTIONS, team.shooterType)}
+                        </span>
+                      )}
+                      {team.intakeLocation && (
+                        <span className="px-2 py-0.5 bg-gray-100 rounded font-medium">
+                          Intake: {getLabel(INTAKE_LOCATION_OPTIONS, team.intakeLocation)}
                         </span>
                       )}
                       {team.hasAutoAim && (
@@ -1062,14 +1186,9 @@ export default function TeamsScreen() {
                           Autoaim: {getLabel(AUTOAIM_OPTIONS, team.hasAutoAim)}
                         </span>
                       )}
-                      {team.canClimb && (
+                      {team.climbLevel && (
                         <span className="px-2 py-0.5 bg-gray-100 rounded font-medium">
-                          Climb: {getLabel(AUTOAIM_OPTIONS, team.canClimb)}
-                        </span>
-                      )}
-                      {team.cycleLength && (
-                        <span className="px-2 py-0.5 bg-gray-100 rounded font-medium">
-                          Cycle: {getLabel(CYCLE_LENGTH_OPTIONS, team.cycleLength)}
+                          Climb: {getLabel(CLIMB_LEVEL_OPTIONS, team.climbLevel)}
                         </span>
                       )}
                     </div>
@@ -1138,38 +1257,45 @@ export default function TeamsScreen() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredTeams.map((team) => (
-            <button
-              key={team.teamNumber}
-              onClick={() => setSelectedTeam(team.teamNumber)}
-              className="w-full bg-card rounded-none p-4 border border-border text-left hover:bg-gray-50 transition-colors"
-            >
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <div className="text-xl font-bold text-gray-800">Team {team.teamNumber}</div>
-                  {team.teamName && <div className="text-sm text-gray-600">{team.teamName}</div>}
+          {filteredTeams.map((team) => {
+            const teamData = importedTeams.find((t) => t.teamNumber === team.teamNumber);
+            const scouted = Boolean(teamData?.lastPitUpdatedAt || teamData?.pitVersion);
+            return (
+              <button
+                key={team.teamNumber}
+                onClick={() => setSelectedTeam(team.teamNumber)}
+                className={`w-full bg-card rounded-none p-4 border text-left hover:bg-gray-50 transition-colors ${
+                  scouted ? 'border-orange-400 bg-orange-50/40' : 'border-border'
+                }`}
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <div className="text-xl font-bold text-gray-800">Team {team.teamNumber}</div>
+                    {team.teamName && <div className="text-sm text-gray-600">{team.teamName}</div>}
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-bold text-primary">{team.rebuiltRating.toFixed(1)}</div>
+                    <div className="text-xs text-gray-500">Rating</div>
+                    {scouted && <div className="text-xs font-semibold text-orange-700 mt-1">Scouted</div>}
+                  </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-lg font-bold text-primary">{team.rebuiltRating.toFixed(1)}</div>
-                  <div className="text-xs text-gray-500">Rating</div>
+                <div className="grid grid-cols-3 gap-2 text-xs text-gray-600">
+                  <div>
+                    <span className="font-semibold">{team.avgAutoBalls.toFixed(1)}</span> auto
+                  </div>
+                  <div>
+                    <span className="font-semibold">{team.avgTeleopBalls.toFixed(1)}</span> teleop
+                  </div>
+                  <div>
+                    <span className="font-semibold">{team.accuracy.toFixed(0)}%</span> acc
+                  </div>
                 </div>
-              </div>
-              <div className="grid grid-cols-3 gap-2 text-xs text-gray-600">
-                <div>
-                  <span className="font-semibold">{team.avgAutoBalls.toFixed(1)}</span> auto
+                <div className="text-xs text-gray-500 mt-2">
+                  {team.matches.length} match{team.matches.length !== 1 ? 'es' : ''}
                 </div>
-                <div>
-                  <span className="font-semibold">{team.avgTeleopBalls.toFixed(1)}</span> teleop
-                </div>
-                <div>
-                  <span className="font-semibold">{team.accuracy.toFixed(0)}%</span> acc
-                </div>
-              </div>
-              <div className="text-xs text-gray-500 mt-2">
-                {team.matches.length} match{team.matches.length !== 1 ? 'es' : ''}
-              </div>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
