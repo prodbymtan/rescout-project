@@ -140,6 +140,83 @@ function parseTimestamp(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : Date.now();
 }
 
+function parsePositiveInteger(value: unknown): number {
+  const parsed = Number.parseInt(String(value ?? ''), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function buildScoutEntryId(raw: Partial<MatchScoutData>, index: number): string {
+  const existingId = String(raw.id ?? '').trim();
+  if (existingId.length > 0) return existingId;
+
+  const match = normalizeMatchLabel(String(raw.matchNumber ?? ''));
+  const alliance = parseAllianceValue(raw.alliance);
+  const team = parsePositiveInteger(raw.teamNumber);
+  const position = parsePositionValue(raw.position);
+  const timestamp = Number.isFinite(Number(raw.timestamp)) ? Number(raw.timestamp) : Date.now();
+  return `legacy-${match}-${alliance}-${team}-${position}-${timestamp}-${index}`;
+}
+
+function normalizeScoutEntry(raw: Partial<MatchScoutData>, index: number): MatchScoutData {
+  const auto = (raw.auto ?? {}) as MatchScoutData['auto'];
+  const teleop = (raw.teleop ?? {}) as MatchScoutData['teleop'];
+  const endgame = (raw.endgame ?? {}) as MatchScoutData['endgame'];
+
+  return {
+    id: buildScoutEntryId(raw, index),
+    matchNumber: normalizeMatchLabel(String(raw.matchNumber ?? '')),
+    alliance: parseAllianceValue(raw.alliance),
+    teamNumber: parsePositiveInteger(raw.teamNumber),
+    position: parsePositionValue(raw.position),
+    auto: {
+      ballCounts: {
+        made: parsePositiveInteger(auto?.ballCounts?.made),
+        miss: parsePositiveInteger(auto?.ballCounts?.miss),
+      },
+      preloadBalls: parsePositiveInteger(auto?.preloadBalls),
+      towerClimb:
+        auto?.towerClimb === 'level1' || auto?.towerClimb === 'failed' ? auto.towerClimb : 'none',
+      autoWinner: auto?.autoWinner === 'blue' ? 'blue' : auto?.autoWinner === 'red' ? 'red' : undefined,
+    },
+    teleop: {
+      ballCounts: {
+        made: parsePositiveInteger(teleop?.ballCounts?.made),
+        miss: parsePositiveInteger(teleop?.ballCounts?.miss),
+      },
+      cycles: Array.isArray(teleop?.cycles) ? teleop.cycles : [],
+    },
+    endgame: {
+      climb:
+        endgame?.climb === 'low' ||
+        endgame?.climb === 'mid' ||
+        endgame?.climb === 'high' ||
+        endgame?.climb === 'failed'
+          ? endgame.climb
+          : 'none',
+      parked: Boolean(endgame?.parked),
+      gotDefended:
+        endgame?.gotDefended === 'light' || endgame?.gotDefended === 'heavy' ? endgame.gotDefended : 'none',
+      playedDefense:
+        endgame?.playedDefense === 'light' || endgame?.playedDefense === 'heavy'
+          ? endgame.playedDefense
+          : 'none',
+      notes: typeof endgame?.notes === 'string' ? endgame.notes : '',
+      tags: Array.isArray(endgame?.tags) ? endgame.tags.map((tag) => String(tag ?? '')) : [],
+      energizedRP: Boolean(endgame?.energizedRP),
+      superchargedRP: Boolean(endgame?.superchargedRP),
+      traversalRP: Boolean(endgame?.traversalRP),
+      matchWin: Boolean(endgame?.matchWin),
+      matchTie: Boolean(endgame?.matchTie),
+      majorContributor: Boolean(endgame?.majorContributor),
+      harmony: Boolean(endgame?.harmony),
+      buddy: Boolean(endgame?.buddy),
+      coop: Boolean(endgame?.coop),
+    },
+    timestamp: Number.isFinite(Number(raw.timestamp)) ? Number(raw.timestamp) : Date.now(),
+    scoutName: typeof raw.scoutName === 'string' ? raw.scoutName : undefined,
+  };
+}
+
 function isMeaningfulValue(value: unknown): boolean {
   if (value === undefined || value === null) return false;
   if (typeof value === 'string') return value.trim().length > 0;
@@ -425,20 +502,18 @@ export const storage = {
       if (remoteScoutData) {
         const mappedRemoteScoutData: MatchScoutData[] = remoteScoutData.flatMap((d) => {
           if (!d?.id || typeof d.team_number !== 'number') return [];
-          return [
-            {
-              id: d.id,
-              matchNumber: normalizeMatchLabel(d.match_number),
-              alliance: parseAllianceValue(d.alliance),
-              teamNumber: d.team_number,
-              position: parsePositionValue(d.position),
-              auto: d.auto_data,
-              teleop: d.teleop_data,
-              endgame: d.endgame_data,
-              timestamp: parseTimestamp(d.created_at),
-              scoutName: d.scout_name,
-            },
-          ];
+          return [normalizeScoutEntry({
+            id: d.id,
+            matchNumber: normalizeMatchLabel(d.match_number),
+            alliance: parseAllianceValue(d.alliance),
+            teamNumber: d.team_number,
+            position: parsePositionValue(d.position),
+            auto: d.auto_data,
+            teleop: d.teleop_data,
+            endgame: d.endgame_data,
+            timestamp: parseTimestamp(d.created_at),
+            scoutName: d.scout_name,
+          }, 0)];
         });
 
         const remoteMap = new Map(mappedRemoteScoutData.map((d) => [d.id, d]));
@@ -538,19 +613,17 @@ export const storage = {
 
   getScoutData(): MatchScoutData[] {
     if (typeof window === 'undefined') return [];
-    const parsed = readStorageJSON<MatchScoutData[]>(STORAGE_KEYS.SCOUT_DATA, []);
-    return parsed.map((entry) => ({
-      ...entry,
-      matchNumber: normalizeMatchLabel(entry.matchNumber),
-    }));
+    const parsed = readStorageJSON<Array<Partial<MatchScoutData>>>(STORAGE_KEYS.SCOUT_DATA, []);
+    const normalized = parsed.map((entry, index) => normalizeScoutEntry(entry, index));
+    if (stableSerialize(parsed) !== stableSerialize(normalized)) {
+      localStorage.setItem(STORAGE_KEYS.SCOUT_DATA, JSON.stringify(normalized));
+    }
+    return normalized;
   },
 
   async saveScoutData(data: MatchScoutData[]): Promise<void> {
     if (typeof window === 'undefined') return;
-    const normalizedData = data.map((entry) => ({
-      ...entry,
-      matchNumber: normalizeMatchLabel(entry.matchNumber),
-    }));
+    const normalizedData = data.map((entry, index) => normalizeScoutEntry(entry, index));
     const previous = this.getScoutData();
     const previousMap = new Map(previous.map((d) => [d.id, d]));
     const changed = normalizedData.filter(

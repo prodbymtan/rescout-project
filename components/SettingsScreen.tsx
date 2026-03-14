@@ -346,6 +346,18 @@ export default function SettingsScreen() {
     setTimeout(() => setImportStatus(''), 3000);
   };
 
+  const handlePushLocalToCloud = async () => {
+    setImportStatus('Pushing local data to cloud...');
+    await storage.saveScoutData(storage.getScoutData());
+    await storage.saveMatches(storage.getMatches());
+    await storage.saveTeams(storage.getTeams());
+    await storage.syncAll();
+    setTeamCount(storage.getTeams().length);
+    setMatchCount(storage.getMatches().length);
+    setImportStatus('Local data pushed to cloud.');
+    setTimeout(() => setImportStatus(''), 3000);
+  };
+
   return (
     <div className="p-4 space-y-6">
       <div className="bg-card rounded-lg p-4 border-2 border-primary/20 shadow-sm">
@@ -491,6 +503,12 @@ export default function SettingsScreen() {
               className="mt-2 px-3 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-primary-dark transition-colors text-xs"
             >
               Force Cloud Sync
+            </button>
+            <button
+              onClick={handlePushLocalToCloud}
+              className="mt-2 ml-2 px-3 py-2 bg-secondary text-white font-semibold rounded-lg hover:bg-secondary-dark transition-colors text-xs"
+            >
+              Push Local To Cloud
             </button>
             {importStatus && (
               <div className={`text-xs mt-2 p-2 rounded ${importStatus.startsWith('Error')
