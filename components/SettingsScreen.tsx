@@ -3,7 +3,14 @@
 import { useState, useEffect } from 'react';
 import { GameConfig } from '@/types';
 import { storage } from '@/lib/storage';
-import { convertTBAMatchToMatch, fetchEventMatchesDetailed, fetchEventOPRs, getTBAKey, setTBAKey } from '@/lib/tba';
+import {
+  convertTBAMatchToMatch,
+  fetchEventDPRs,
+  fetchEventMatchesDetailed,
+  fetchEventOPRs,
+  getTBAKey,
+  setTBAKey,
+} from '@/lib/tba';
 import { fetchTeamEventSignal } from '@/lib/statbotics';
 import { buildSyntheticScoutData } from '@/lib/synthetic';
 import { importTeamsFromCSV, importTeamsFromTBA, mergeAndSaveTeams } from '@/lib/teamImport';
@@ -245,8 +252,9 @@ export default function SettingsScreen() {
         new Set(matches.flatMap((m) => [...m.redAlliance, ...m.blueAlliance]))
       );
 
-      const [tbaOprs, statboticsSignals] = await Promise.all([
+      const [tbaOprs, tbaDprs, statboticsSignals] = await Promise.all([
         fetchEventOPRs(eventKey).catch(() => ({})),
+        fetchEventDPRs(eventKey).catch(() => ({})),
         Promise.all(uniqueTeams.map((team) => fetchTeamEventSignal(team, eventKey))),
       ]);
 
@@ -258,6 +266,7 @@ export default function SettingsScreen() {
           (signal): signal is NonNullable<typeof signal> => Boolean(signal)
         ),
         tbaOprs,
+        tbaDprs,
         targetAllianceFuel: Math.max(50, targetAllianceFuel),
       });
 

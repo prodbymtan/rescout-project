@@ -43,6 +43,7 @@ export interface SyntheticSeedOptions {
   existingScoutData: MatchScoutData[];
   statboticsSignals: TeamEventSignal[];
   tbaOprs: Record<string, number>;
+  tbaDprs: Record<string, number>;
   targetAllianceFuel: number;
   teleopMissRate?: number;
 }
@@ -54,6 +55,7 @@ export function buildSyntheticScoutData(options: SyntheticSeedOptions): MatchSco
     existingScoutData,
     statboticsSignals,
     tbaOprs,
+    tbaDprs,
     targetAllianceFuel,
     teleopMissRate = 0.14,
   } = options;
@@ -68,23 +70,27 @@ export function buildSyntheticScoutData(options: SyntheticSeedOptions): MatchSco
     m.blueAlliance.forEach((t) => allTeams.add(t));
   });
 
-  const statboticsRaw = new Map<number, number | undefined>();
+  const epaRaw = new Map<number, number | undefined>();
   const oprRaw = new Map<number, number | undefined>();
+  const dprRaw = new Map<number, number | undefined>();
 
   allTeams.forEach((team) => {
     const signal = signalByTeam.get(team);
-    statboticsRaw.set(team, signal?.totalPointsMean ?? signal?.currentNormEPA);
+    epaRaw.set(team, signal?.currentNormEPA ?? signal?.totalPointsMean);
     oprRaw.set(team, tbaOprs[`frc${team}`]);
+    dprRaw.set(team, tbaDprs[`frc${team}`]);
   });
 
-  const statNorm = normalizeMap(statboticsRaw);
+  const epaNorm = normalizeMap(epaRaw);
   const oprNorm = normalizeMap(oprRaw);
+  const dprNorm = normalizeMap(dprRaw);
 
   const blendedPower = new Map<number, number>();
   allTeams.forEach((team) => {
-    const stat = statNorm.get(team) ?? 0.5;
+    const epa = epaNorm.get(team) ?? 0.5;
     const opr = oprNorm.get(team) ?? 0.5;
-    blendedPower.set(team, 0.65 * stat + 0.35 * opr);
+    const dpr = dprNorm.get(team) ?? 0.5;
+    blendedPower.set(team, (epa + opr + dpr) / 3);
   });
 
   const oldReal = existingScoutData.filter((d) => !d.id.startsWith('synthetic-'));
@@ -137,7 +143,7 @@ export function buildSyntheticScoutData(options: SyntheticSeedOptions): MatchSco
         position: ((i + 1) as 1 | 2 | 3),
         auto: {
           ballCounts: { made: autoMade, miss: autoMiss },
-          preloadBalls: clamp(Math.round(2 + power * 2), 0, 5),
+          preloadBalls: clamp(Math.round(2 + power * 2), 0, 8),
           towerClimb: power > 0.66 ? 'level1' : 'none',
           autoWinner: undefined,
         },
@@ -150,7 +156,7 @@ export function buildSyntheticScoutData(options: SyntheticSeedOptions): MatchSco
           parked: power <= 0.6,
           gotDefended: power > 0.75 ? 'light' : 'heavy',
           playedDefense: power < 0.45 ? 'heavy' : power < 0.6 ? 'light' : 'none',
-          notes: `Synthetic seed from TBA+Statbotics (${eventKey})`,
+          notes: `Synthetic seed from OPR + DPR + EPA (${eventKey})`,
           tags: ['synthetic', 'rating-test'],
           energizedRP: allianceFuel >= 100,
           superchargedRP: allianceFuel >= 360,
