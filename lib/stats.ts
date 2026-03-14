@@ -27,15 +27,14 @@ export function calculateTeamStats(teamNumber: number, matches: MatchScoutData[]
   }
 
   // Calculate averages
-  const autoBalls = teamMatches.map(m => 
-    m.auto.ballCounts.made
-  );
-  const teleopBalls = teamMatches.map(m =>
-    m.teleop.ballCounts.made
-  );
-  const totalBalls = teamMatches.map(m =>
-    autoBalls[teamMatches.indexOf(m)] + teleopBalls[teamMatches.indexOf(m)]
-  );
+  const asNumber = (value: unknown, fallback = 0): number => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  };
+
+  const autoBalls = teamMatches.map((m) => asNumber(m.auto?.ballCounts?.made));
+  const teleopBalls = teamMatches.map((m) => asNumber(m.teleop?.ballCounts?.made));
+  const totalBalls = teamMatches.map((_, idx) => autoBalls[idx] + teleopBalls[idx]);
 
   const avgAutoBalls = autoBalls.reduce((a, b) => a + b, 0) / teamMatches.length;
   const avgTeleopBalls = teleopBalls.reduce((a, b) => a + b, 0) / teamMatches.length;
@@ -43,33 +42,42 @@ export function calculateTeamStats(teamNumber: number, matches: MatchScoutData[]
 
   // Calculate accuracy
   const totalMade = teamMatches.reduce((sum, m) => {
-    const auto = m.auto.ballCounts.made;
-    const teleop = m.teleop.ballCounts.made;
+    const auto = asNumber(m.auto?.ballCounts?.made);
+    const teleop = asNumber(m.teleop?.ballCounts?.made);
     return sum + auto + teleop;
   }, 0);
 
   const totalAttempted = teamMatches.reduce((sum, m) => {
-    const auto = m.auto.ballCounts.made + m.auto.ballCounts.miss;
-    const teleop = m.teleop.ballCounts.made + m.teleop.ballCounts.miss;
+    const auto = asNumber(m.auto?.ballCounts?.made) + asNumber(m.auto?.ballCounts?.miss);
+    const teleop = asNumber(m.teleop?.ballCounts?.made) + asNumber(m.teleop?.ballCounts?.miss);
     return sum + auto + teleop;
   }, 0);
 
   const accuracy = totalAttempted > 0 ? (totalMade / totalAttempted) * 100 : 0;
 
   // Climb success rate
-  const successfulClimbs = teamMatches.filter(m => 
-    m.endgame.climb !== 'none' && m.endgame.climb !== 'failed'
+  const successfulClimbs = teamMatches.filter(
+    (m) => m.endgame?.climb !== 'none' && m.endgame?.climb !== 'failed'
   ).length;
   const climbSuccessRate = (successfulClimbs / teamMatches.length) * 100;
 
   // Cycle stats
-  const allCycles = teamMatches.flatMap(m => m.teleop.cycles);
+  const allCycles = teamMatches.flatMap((m) =>
+    Array.isArray(m.teleop?.cycles)
+      ? m.teleop.cycles.filter(
+          (cycle) =>
+            cycle &&
+            Number.isFinite(Number(cycle.startTime)) &&
+            Number.isFinite(Number(cycle.endTime))
+        )
+      : []
+  );
   const avgCycleTime = allCycles.length > 0
-    ? allCycles.reduce((sum, c) => sum + (c.endTime - c.startTime), 0) / allCycles.length
+    ? allCycles.reduce((sum, c) => sum + (asNumber(c.endTime) - asNumber(c.startTime)), 0) / allCycles.length
     : 0;
   const cyclesPerMatch = allCycles.length / teamMatches.length;
   const ballsPerCycle = allCycles.length > 0
-    ? allCycles.reduce((sum, c) => sum + c.ballsScored, 0) / allCycles.length
+    ? allCycles.reduce((sum, c) => sum + asNumber(c.ballsScored), 0) / allCycles.length
     : 0;
 
   // Consistency (standard deviation)
@@ -82,11 +90,16 @@ export function calculateTeamStats(teamNumber: number, matches: MatchScoutData[]
                         (climbSuccessRate / 10) + (accuracy / 2);
 
   // Notes and tags
-  const notes = teamMatches.map(m => m.endgame.notes).filter(n => n);
+  const notes = teamMatches
+    .map((m) => (typeof m.endgame?.notes === 'string' ? m.endgame.notes : ''))
+    .filter((n) => n);
   const tags: Record<string, number> = {};
-  teamMatches.forEach(m => {
-    m.endgame.tags.forEach(tag => {
-      tags[tag] = (tags[tag] || 0) + 1;
+  teamMatches.forEach((m) => {
+    const matchTags = Array.isArray(m.endgame?.tags) ? m.endgame.tags : [];
+    matchTags.forEach((tag) => {
+      const safeTag = String(tag ?? '').trim();
+      if (!safeTag) return;
+      tags[safeTag] = (tags[safeTag] || 0) + 1;
     });
   });
 
@@ -129,4 +142,3 @@ export function predictMatchScore(redTeams: number[], blueTeams: number[], allSt
 
   return { red, blue };
 }
-

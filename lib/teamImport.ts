@@ -72,6 +72,9 @@ export function importTeamsFromCSV(csvContent: string): TeamData[] {
     const cityIndex = headers.indexOf('city');
     const stateIndex = headers.findIndex((h) => ['state_prov', 'state', 'province'].includes(h));
     const countryIndex = headers.indexOf('country');
+    const robotImageIndex = headers.findIndex((h) =>
+      ['robot_image_url', 'robot_photo_url', 'image_url'].includes(h)
+    );
 
     if (teamNameIndex >= 0 && values[teamNameIndex]) {
       teamData.teamName = values[teamNameIndex];
@@ -84,6 +87,9 @@ export function importTeamsFromCSV(csvContent: string): TeamData[] {
     }
     if (countryIndex >= 0 && values[countryIndex]) {
       teamData.country = values[countryIndex];
+    }
+    if (robotImageIndex >= 0 && values[robotImageIndex]) {
+      teamData.robotPhotoUrl = values[robotImageIndex];
     }
 
     teams.push(teamData);
