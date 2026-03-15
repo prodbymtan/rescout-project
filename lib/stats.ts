@@ -130,7 +130,18 @@ export function calculateTeamStats(teamNumber: number, matches: MatchScoutData[]
   const consistency = Math.sqrt(variance);
 
   const manualRating = computeRating(manualMatches);
-  const syntheticRating = computeRating(syntheticMatches);
+  const syntheticModelTags = syntheticMatches
+    .flatMap((m) => (Array.isArray(m.endgame?.tags) ? m.endgame.tags : []))
+    .map((tag) => {
+      const match = String(tag ?? '').match(/^model_(\d{1,3})$/i);
+      return match ? Number.parseInt(match[1], 10) : null;
+    })
+    .filter((value): value is number => value !== null && Number.isFinite(value));
+
+  const syntheticRating =
+    syntheticModelTags.length > 0
+      ? syntheticModelTags.reduce((sum, value) => sum + value, 0) / syntheticModelTags.length
+      : computeRating(syntheticMatches);
   const displayRating = syntheticMatches.length > 0 ? syntheticRating : manualRating;
   const rebuiltRating = displayRating;
 

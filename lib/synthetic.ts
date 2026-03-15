@@ -109,6 +109,7 @@ export function buildSyntheticScoutData(options: SyntheticSeedOptions): MatchSco
 
     teams.forEach((team, i) => {
       const power = blendedPower.get(team) ?? 0.5;
+      const modelScore = Math.round(clamp(power * 100, 0, 100));
       const weight = baseWeights[i] / totalWeight;
       const jitter = (seededUnit(`${eventKey}-${matchNumber}-${alliance}-${team}-j`) - 0.5) * 8;
       const basePerTeam = clamp(allianceFuel / 3, 8, 48);
@@ -158,7 +159,7 @@ export function buildSyntheticScoutData(options: SyntheticSeedOptions): MatchSco
           gotDefended: power > 0.75 ? 'light' : 'heavy',
           playedDefense: power < 0.45 ? 'heavy' : power < 0.6 ? 'light' : 'none',
           notes: `Synthetic seed from OPR + DPR + EPA (${eventKey})`,
-          tags: ['synthetic', 'rating-test'],
+          tags: ['synthetic', 'rating-test', `model_${modelScore}`],
           energizedRP: allianceFuel >= 70,
           superchargedRP: allianceFuel >= 180,
           traversalRP: power > 0.7,
