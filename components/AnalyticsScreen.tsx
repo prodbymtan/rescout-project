@@ -23,7 +23,7 @@ export default function AnalyticsScreen() {
     .sort((a, b) => {
       switch (sortBy) {
         case 'rating':
-          return b.rebuiltRating - a.rebuiltRating;
+          return b.displayRating - a.displayRating;
         case 'auto':
           return b.avgAutoBalls - a.avgAutoBalls;
         case 'teleop':
@@ -56,7 +56,7 @@ export default function AnalyticsScreen() {
               onChange={(e) => setSortBy(e.target.value as any)}
               className="w-full px-3 py-2 border border-border rounded-lg"
             >
-              <option value="rating">ReScout Rating</option>
+              <option value="rating">Model Rating</option>
               <option value="auto">Auto Balls</option>
               <option value="teleop">Teleop Balls</option>
               <option value="accuracy">Accuracy</option>
@@ -98,7 +98,7 @@ export default function AnalyticsScreen() {
               <tr className="border-b border-border">
                 <th className="text-left py-2 px-2 font-semibold text-gray-700">Rank</th>
                 <th className="text-left py-2 px-2 font-semibold text-gray-700">Team</th>
-                <th className="text-right py-2 px-2 font-semibold text-gray-700">Rating</th>
+                <th className="text-right py-2 px-2 font-semibold text-gray-700">Model</th>
                 <th className="text-right py-2 px-2 font-semibold text-gray-700">Auto</th>
                 <th className="text-right py-2 px-2 font-semibold text-gray-700">Teleop</th>
                 <th className="text-right py-2 px-2 font-semibold text-gray-700">Acc%</th>
@@ -116,7 +116,7 @@ export default function AnalyticsScreen() {
                     {team.teamNumber}
                   </td>
                   <td className="py-3 px-2 text-right font-semibold text-primary">
-                    {team.rebuiltRating.toFixed(1)}
+                    {team.displayRating.toFixed(1)}
                   </td>
                   <td className="py-3 px-2 text-right text-gray-700">
                     {team.avgAutoBalls.toFixed(1)}
@@ -222,4 +222,3 @@ export default function AnalyticsScreen() {
     </div>
   );
 }
-

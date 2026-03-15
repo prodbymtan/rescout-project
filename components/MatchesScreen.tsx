@@ -108,7 +108,7 @@ export default function MatchesScreen() {
                       <div className="flex justify-between items-center">
                         <span className="font-medium">Team {teamNum}</span>
                         <span className="text-sm text-gray-400">
-                          Rating: {stats?.rebuiltRating.toFixed(1) || 'N/A'}
+                          Model: {stats?.displayRating.toFixed(1) || 'N/A'}
                         </span>
                       </div>
                       <div className="text-xs text-gray-400 mt-1">
@@ -162,7 +162,7 @@ export default function MatchesScreen() {
                       <div className="flex justify-between items-center">
                         <span className="font-medium">Team {teamNum}</span>
                         <span className="text-sm text-gray-400">
-                          Rating: {stats?.rebuiltRating.toFixed(1) || 'N/A'}
+                          Model: {stats?.displayRating.toFixed(1) || 'N/A'}
                         </span>
                       </div>
                       <div className="text-xs text-gray-400 mt-1">

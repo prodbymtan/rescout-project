@@ -76,6 +76,11 @@ export interface TeamStats {
   ballsPerCycle: number;
   consistency: number; // standard deviation
   rebuiltRating: number; // EPA-like metric
+  manualRating: number;
+  syntheticRating: number;
+  displayRating: number;
+  manualMatchCount: number;
+  syntheticMatchCount: number;
   notes: string[];
   tags: Record<string, number>;
 }
@@ -100,4 +105,3 @@ export interface GameConfig {
     max: number;
   };
 }
-

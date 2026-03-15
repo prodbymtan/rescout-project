@@ -393,7 +393,7 @@ export default function TeamsScreen() {
 
     const uniqueTeams = Array.from(new Set(scoutData.map((d) => d.teamNumber)));
     const teamStats = uniqueTeams.map((teamNum) => calculateTeamStats(teamNum, scoutData));
-    setTeams(teamStats.sort((a, b) => b.rebuiltRating - a.rebuiltRating));
+    setTeams(teamStats.sort((a, b) => b.displayRating - a.displayRating));
   };
 
   const filteredTeams = teams.filter((team) => team.teamNumber.toString().includes(searchQuery));
@@ -941,8 +941,11 @@ export default function TeamsScreen() {
             <h2 className="text-lg font-semibold text-gray-800 mb-3">Live Match Stats Snapshot</h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div>
-                <div className="text-xs text-gray-600 mb-1">Rebuilt Rating</div>
-                <div className="text-lg font-bold text-primary">{selectedTeamStats.rebuiltRating.toFixed(1)}</div>
+                <div className="text-xs text-gray-600 mb-1">Model Rating</div>
+                <div className="text-lg font-bold text-primary">{selectedTeamStats.displayRating.toFixed(1)}</div>
+                <div className="text-[10px] text-gray-500">
+                  Manual {selectedTeamStats.manualRating.toFixed(1)} · Synthetic {selectedTeamStats.syntheticRating.toFixed(1)}
+                </div>
               </div>
               <div>
                 <div className="text-xs text-gray-600 mb-1">Matches</div>
@@ -1035,8 +1038,8 @@ export default function TeamsScreen() {
                     </div>
                     {stats && (
                       <div className="text-right">
-                        <div className="text-lg font-bold text-primary">{stats.rebuiltRating.toFixed(1)}</div>
-                        <div className="text-xs text-gray-500">Rating</div>
+                        <div className="text-lg font-bold text-primary">{stats.displayRating.toFixed(1)}</div>
+                        <div className="text-xs text-gray-500">Model</div>
                         {scouted && <div className="text-xs font-semibold text-orange-700 mt-1">Scouted</div>}
                       </div>
                     )}
@@ -1146,8 +1149,8 @@ export default function TeamsScreen() {
                     {team.teamName && <div className="text-sm text-gray-600">{team.teamName}</div>}
                   </div>
                   <div className="text-right">
-                    <div className="text-lg font-bold text-primary">{team.rebuiltRating.toFixed(1)}</div>
-                    <div className="text-xs text-gray-500">Rating</div>
+                    <div className="text-lg font-bold text-primary">{team.displayRating.toFixed(1)}</div>
+                    <div className="text-xs text-gray-500">Model</div>
                     {scouted && <div className="text-xs font-semibold text-orange-700 mt-1">Scouted</div>}
                   </div>
                 </div>
